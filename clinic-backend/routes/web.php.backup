@@ -1,0 +1,11 @@
+<?php
+use Illuminate\Support\Facades\Route;
+Route::get("/", function () {
+    return view("welcome");
+});
+Route::get("/test", function () {
+    return "Test Route Works!";
+});
+Route::get("/admin/login", function () {
+    return "Admin Login Works!";
+});
