@@ -1,21 +1,28 @@
- # Create .gitignore
-  cat > .gitignore << 'EOF'
-  # Backend
-  clinic-backend/.env
-  clinic-backend/vendor/
-  clinic-backend/node_modules/
-  clinic-backend/storage/*.key
-  clinic-backend/storage/logs/*
-  clinic-backend/storage/framework/cache/*
-  clinic-backend/storage/framework/sessions/*
-  clinic-backend/storage/framework/views/*
-  clinic-backend/bootstrap/cache/*
+# Backend
+clinic-backend/.env
+clinic-backend/vendor/
+clinic-backend/node_modules/
+clinic-backend/storage/*.key
+clinic-backend/storage/logs/*
+clinic-backend/storage/framework/cache/*
+clinic-backend/storage/framework/sessions/*
+clinic-backend/storage/framework/views/*
+clinic-backend/bootstrap/cache/*
+!clinic-backend/storage/logs/.gitkeep
+!clinic-backend/storage/framework/cache/.gitkeep
+!clinic-backend/storage/framework/sessions/.gitkeep
+!clinic-backend/storage/framework/views/.gitkeep
 
-  # macOS
-  .DS_Store
+# Frontend
+.flutter-plugins
+.flutter-plugins-dependencies
+build/
 
-  # IDE
-  .idea/
-  .vscode/
-  *.swp
-  *.swo
+# macOS
+.DS_Store
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
