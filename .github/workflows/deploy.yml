@@ -7,25 +7,11 @@ on:
   workflow_dispatch:  # Allows manual trigger
 
 jobs:
-  deploy-backend:
-    name: Deploy Backend (api.exquiller.com)
+  deploy:
+    name: Deploy to Server
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Setup PHP
-        uses: shivammathur/setup-php@v2
-        with:
-          php-version: '8.3'
-          extensions: mbstring, xml, ctype, iconv, intl, pdo_sqlite, dom, filter, gd, json, mbstring, pdo, zip
-          coverage: none
-
-      - name: Install Composer dependencies
-        working-directory: ./clinic-backend
-        run: composer install --optimize-autoloader --no-dev --prefer-dist
-
       - name: Setup SSH
         env:
           SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
@@ -37,147 +23,40 @@ jobs:
           echo "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
           chmod 644 ~/.ssh/known_hosts
 
-      - name: Deploy Backend
-        env:
-          SERVER_USER: ${{ secrets.SERVER_USER }}
-          SERVER_HOST: ${{ secrets.SERVER_HOST }}
-          SERVER_PATH: ${{ secrets.BACKEND_PATH }}
+      - name: Deploy to Server
         run: |
-          ssh $SERVER_USER@$SERVER_HOST << 'ENDSSH'
+          ssh root@45.32.102.242 << 'ENDSSH'
           set -e
 
-          # Navigate to deployment directory
+          echo "📦 Deploying to production..."
+
+          # Go to deployment directory
           cd ~/deployment
 
-          # Pull latest changes
-          git fetch origin
-          git reset --hard origin/main
+          # Pull latest code
+          echo "⬇️  Pulling latest code..."
+          git pull origin main
 
-          # Install dependencies and deploy
-          cd clinic-backend
+          # Deploy Backend
+          echo "🔧 Deploying backend..."
+          cd ~/deployment/clinic-backend
           composer install --optimize-autoloader --no-dev --no-interaction
-
-          # Run migrations
           php artisan migrate --force
-
-          # Clear and cache
-          php artisan config:clear
-          php artisan cache:clear
           php artisan config:cache
           php artisan route:cache
           php artisan view:cache
-
-          # Sync to production
-          rsync -av \
-            --exclude=.git \
-            --exclude=node_modules \
-            --exclude=.env.example \
-            --exclude=tests \
-            --delete \
-            ~/deployment/clinic-backend/ $SERVER_PATH/
-
-          # Create storage symlink
-          cd $SERVER_PATH
           php artisan storage:link
-
-          # Set permissions
-          sudo chown -R www-data:www-data storage bootstrap/cache public/storage
-          sudo chmod -R 775 storage bootstrap/cache
-          sudo chmod -R 755 public/storage
-
-          # Restart queue and PHP-FPM
           php artisan queue:restart
-          sudo supervisorctl restart clinic-queue:* || true
-          sudo systemctl reload php8.3-fpm || sudo systemctl reload php8.2-fpm || sudo systemctl reload php8.1-fpm || true
 
-          echo "✅ Backend deployed successfully"
+          echo "✅ Deployment completed!"
           ENDSSH
 
-      - name: Notify deployment status
+      - name: Notify
         if: always()
         run: |
           if [ ${{ job.status }} == 'success' ]; then
-            echo "✅ Backend deployment successful"
+            echo "✅ Deployment successful!"
           else
-            echo "❌ Backend deployment failed"
+            echo "❌ Deployment failed!"
+            exit 1
           fi
-
-  deploy-frontend:
-    name: Deploy Frontend (exquiller.com)
-    runs-on: ubuntu-latest
-    needs: deploy-backend  # Deploy backend first
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.x'
-          channel: 'stable'
-
-      - name: Get Flutter dependencies
-        run: flutter pub get
-
-      - name: Build Flutter Web
-        run: flutter build web --release --base-href="/" --web-renderer canvaskit
-
-      - name: Setup SSH
-        env:
-          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-          SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
-        run: |
-          mkdir -p ~/.ssh
-          echo "$SSH_PRIVATE_KEY" | base64 -d > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-          echo "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
-          chmod 644 ~/.ssh/known_hosts
-
-      - name: Deploy Frontend
-        env:
-          SERVER_USER: ${{ secrets.SERVER_USER }}
-          SERVER_HOST: ${{ secrets.SERVER_HOST }}
-          FRONTEND_PATH: ${{ secrets.FRONTEND_PATH }}
-        run: |
-          # Create backup on server
-          ssh $SERVER_USER@$SERVER_HOST "mkdir -p $FRONTEND_PATH.backup && rsync -a $FRONTEND_PATH/ $FRONTEND_PATH.backup/" || true
-
-          # Deploy built files
-          rsync -avz --delete build/web/ $SERVER_USER@$SERVER_HOST:$FRONTEND_PATH/
-
-          # Set permissions
-          ssh $SERVER_USER@$SERVER_HOST "sudo chown -R www-data:www-data $FRONTEND_PATH && sudo chmod -R 755 $FRONTEND_PATH"
-
-          echo "✅ Frontend deployed successfully"
-
-      - name: Notify deployment status
-        if: always()
-        run: |
-          if [ ${{ job.status }} == 'success' ]; then
-            echo "✅ Frontend deployment successful"
-          else
-            echo "❌ Frontend deployment failed"
-          fi
-
-  notification:
-    name: Send Deployment Notification
-    runs-on: ubuntu-latest
-    needs: [deploy-backend, deploy-frontend]
-    if: always()
-
-    steps:
-      - name: Send success notification
-        if: ${{ needs.deploy-backend.result == 'success' && needs.deploy-frontend.result == 'success' }}
-        run: |
-          echo "🎉 Deployment completed successfully!"
-          echo "✅ Backend: https://api.exquiller.com"
-          echo "✅ Frontend: https://exquiller.com"
-
-      - name: Send failure notification
-        if: ${{ needs.deploy-backend.result == 'failure' || needs.deploy-frontend.result == 'failure' }}
-        run: |
-          echo "❌ Deployment failed!"
-          echo "Backend status: ${{ needs.deploy-backend.result }}"
-          echo "Frontend status: ${{ needs.deploy-frontend.result }}"
-          exit 1
