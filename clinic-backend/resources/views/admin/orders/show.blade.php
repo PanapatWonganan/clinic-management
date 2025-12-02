@@ -495,7 +495,7 @@
             @else
                 <!-- Upload form for delivery proof -->
                 @if(in_array($order->status, ['paid', 'confirmed', 'processing']))
-                <form id="deliveryProofForm" enctype="multipart/form-data" style="max-width: 500px;" onsubmit="return uploadDeliveryProof(event);">
+                <div style="max-width: 500px;">
                     <div style="margin-bottom: 1rem;">
                         <label for="deliveryImage" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">อัพโหลดรูปหลักฐานการจัดส่ง:</label>
                         <input type="file" id="deliveryImage" name="image" accept="image/*" required
@@ -504,16 +504,16 @@
                     </div>
 
                     <div style="margin-bottom: 1rem;">
-                        <label for="notes" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">หมายเหตุ (ถ้ามี):</label>
-                        <textarea id="notes" name="notes" rows="3"
+                        <label for="deliveryNotes" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">หมายเหตุ (ถ้ามี):</label>
+                        <textarea id="deliveryNotes" name="notes" rows="3"
                                   style="width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 6px;"
                                   placeholder="หมายเหตุเพิ่มเติม..."></textarea>
                     </div>
 
-                    <button type="submit" class="btn btn-primary">
+                    <button type="button" class="btn btn-primary" onclick="uploadDeliveryProofNow()">
                         <i class="fas fa-upload"></i> อัพโหลดหลักฐานการจัดส่ง
                     </button>
-                </form>
+                </div>
                 @else
                     <div class="no-slips">
                         <i class="fas fa-truck" style="font-size: 2rem; color: #cbd5e1; margin-bottom: 1rem;"></i>
@@ -623,32 +623,28 @@
         }
 
         // Delivery proof functions
-        async function uploadDeliveryProof(e) {
-            e.preventDefault();
-
-            const formData = new FormData();
+        function uploadDeliveryProofNow() {
             const imageFile = document.getElementById('deliveryImage').files[0];
-            const notes = document.getElementById('notes').value;
+            const notes = document.getElementById('deliveryNotes').value;
 
             if (!imageFile) {
                 alert('กรุณาเลือกไฟล์รูปภาพ');
-                return false;
+                return;
             }
 
+            const formData = new FormData();
             formData.append('image', imageFile);
             formData.append('notes', notes);
 
-            try {
-                const response = await fetch(`/admin/orders/{{ $order->id }}/delivery-proof`, {
-                    method: 'POST',
-                    headers: {
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-                    },
-                    body: formData
-                });
-
-                const result = await response.json();
-
+            fetch('/admin/orders/{{ $order->id }}/delivery-proof', {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                },
+                body: formData
+            })
+            .then(response => response.json())
+            .then(result => {
                 if (result.success) {
                     document.getElementById('success-message').style.display = 'block';
                     document.getElementById('success-message').textContent = result.message;
@@ -659,12 +655,11 @@
                     document.getElementById('error-message').style.display = 'block';
                     document.getElementById('error-message').textContent = result.message || 'เกิดข้อผิดพลาด';
                 }
-            } catch (error) {
+            })
+            .catch(error => {
                 document.getElementById('error-message').style.display = 'block';
                 document.getElementById('error-message').textContent = 'เกิดข้อผิดพลาดในการอัพโหลด';
-            }
-
-            return false;
+            });
         }
 
         async function deleteDeliveryProof(orderId) {
