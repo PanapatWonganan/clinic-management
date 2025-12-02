@@ -78,6 +78,15 @@
             background: #059669;
         }
 
+        .btn-primary {
+            background: #8b5cf6;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #7c3aed;
+        }
+
         .btn-danger {
             background: #ef4444;
             color: white;
