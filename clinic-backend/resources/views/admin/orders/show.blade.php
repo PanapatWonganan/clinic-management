@@ -510,9 +510,12 @@
                                   placeholder="หมายเหตุเพิ่มเติม..."></textarea>
                     </div>
 
-                    <button type="button" class="btn btn-primary" onclick="uploadDeliveryProofNow()">
+                    <button type="button" id="uploadBtn" class="btn btn-primary" onclick="uploadDeliveryProofNow()">
                         <i class="fas fa-upload"></i> อัพโหลดหลักฐานการจัดส่ง
                     </button>
+                    <div id="uploadProgress" style="display: none; margin-top: 1rem; padding: 1rem; background: #dbeafe; border-radius: 0.5rem; color: #1e40af;">
+                        <i class="fas fa-spinner fa-spin"></i> กำลังอัพโหลด...
+                    </div>
                 </div>
                 @else
                     <div class="no-slips">
@@ -626,11 +629,18 @@
         function uploadDeliveryProofNow() {
             const imageFile = document.getElementById('deliveryImage').files[0];
             const notes = document.getElementById('deliveryNotes').value;
+            const uploadBtn = document.getElementById('uploadBtn');
+            const uploadProgress = document.getElementById('uploadProgress');
 
             if (!imageFile) {
                 alert('กรุณาเลือกไฟล์รูปภาพ');
                 return;
             }
+
+            // Show loading state
+            uploadBtn.disabled = true;
+            uploadBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> กำลังอัพโหลด...';
+            uploadProgress.style.display = 'block';
 
             const formData = new FormData();
             formData.append('image', imageFile);
@@ -645,20 +655,42 @@
             })
             .then(response => response.json())
             .then(result => {
+                // Hide loading state
+                uploadProgress.style.display = 'none';
+
                 if (result.success) {
+                    // Show success message
+                    uploadProgress.style.display = 'block';
+                    uploadProgress.style.background = '#d1fae5';
+                    uploadProgress.style.color = '#065f46';
+                    uploadProgress.innerHTML = '<i class="fas fa-check-circle"></i> ' + result.message;
+
                     document.getElementById('success-message').style.display = 'block';
                     document.getElementById('success-message').textContent = result.message;
+
+                    // Reload after 1.5 seconds
                     setTimeout(() => {
                         location.reload();
-                    }, 1000);
+                    }, 1500);
                 } else {
+                    // Reset button
+                    uploadBtn.disabled = false;
+                    uploadBtn.innerHTML = '<i class="fas fa-upload"></i> อัพโหลดหลักฐานการจัดส่ง';
+
+                    // Show error
                     document.getElementById('error-message').style.display = 'block';
                     document.getElementById('error-message').textContent = result.message || 'เกิดข้อผิดพลาด';
                 }
             })
             .catch(error => {
+                // Reset button
+                uploadBtn.disabled = false;
+                uploadBtn.innerHTML = '<i class="fas fa-upload"></i> อัพโหลดหลักฐานการจัดส่ง';
+                uploadProgress.style.display = 'none';
+
+                // Show error
                 document.getElementById('error-message').style.display = 'block';
-                document.getElementById('error-message').textContent = 'เกิดข้อผิดพลาดในการอัพโหลด';
+                document.getElementById('error-message').textContent = 'เกิดข้อผิดพลาดในการอัพโหลด: ' + error.message;
             });
         }
 
