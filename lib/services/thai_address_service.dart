@@ -1,4 +1,5 @@
 import '../models/thai_address.dart';
+import '../constants/app_config.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 
@@ -27,7 +28,7 @@ class ThaiAddressService {
   Future<void> _loadProvincesFromAPI() async {
     try {
       final response = await http.get(
-        Uri.parse('http://127.0.0.1:8000/test/address/provinces'),
+        Uri.parse('${AppConfig.thaiAddressApiUrl}/provinces'),
         headers: {'Accept': 'application/json'},
       );
 
@@ -57,7 +58,7 @@ class ThaiAddressService {
   Future<List<District>> getDistrictsByProvinceId(int provinceId) async {
     print('ThaiAddressService: Loading districts for province ID: $provinceId');
     try {
-      final url = 'http://127.0.0.1:8000/test/address/districts/$provinceId';
+      final url = '${AppConfig.thaiAddressApiUrl}/districts/$provinceId';
       print('ThaiAddressService: Making request to: $url');
 
       final response = await http.get(
@@ -104,7 +105,7 @@ class ThaiAddressService {
     try {
       final response = await http.get(
         Uri.parse(
-            'http://127.0.0.1:8000/test/address/sub-districts/$districtId'),
+            '${AppConfig.thaiAddressApiUrl}/sub-districts/$districtId'),
         headers: {'Accept': 'application/json'},
       );
 
@@ -145,7 +146,7 @@ class ThaiAddressService {
   Future<District?> getDistrictById(int id) async {
     try {
       final response = await http.get(
-        Uri.parse('http://127.0.0.1:8000/test/address/district/$id'),
+        Uri.parse('${AppConfig.thaiAddressApiUrl}/district/$id'),
         headers: {'Accept': 'application/json'},
       );
 
@@ -168,7 +169,7 @@ class ThaiAddressService {
   Future<SubDistrict?> getSubDistrictById(int id) async {
     try {
       final response = await http.get(
-        Uri.parse('http://127.0.0.1:8000/test/address/subdistrict/$id'),
+        Uri.parse('${AppConfig.thaiAddressApiUrl}/subdistrict/$id'),
         headers: {'Accept': 'application/json'},
       );
 
