@@ -16,7 +16,7 @@ clinic-backend/bootstrap/cache/*
 # Frontend
 .flutter-plugins
 .flutter-plugins-dependencies
-build/
+# build/
 
 # macOS
 .DS_Store
