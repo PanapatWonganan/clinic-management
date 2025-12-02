@@ -23,6 +23,11 @@ class DeliveryProof extends Model
         'updated_at' => 'datetime',
     ];
 
+    protected $appends = [
+        'image_url',
+        'file_size_formatted',
+    ];
+
     // Relationships
     public function order(): BelongsTo
     {
