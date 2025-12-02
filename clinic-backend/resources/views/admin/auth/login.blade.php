@@ -79,20 +79,6 @@
             transform: translateY(-2px);
             box-shadow: 0 10px 25px rgba(131, 134, 203, 0.3);
         }
-        
-        .demo-info {
-            background: var(--light-purple);
-            border-radius: 10px;
-            padding: 1rem;
-            margin-top: 1.5rem;
-            text-align: center;
-            color: var(--purple-text);
-            font-size: 0.9rem;
-        }
-        
-        .demo-info strong {
-            color: var(--purple-text);
-        }
     </style>
 </head>
 <body>
@@ -104,22 +90,20 @@
 
         <form method="POST" action="{{ route('admin.login.post') }}">
             @csrf
-            
+
             <div class="mb-3">
-                <input type="email" 
-                       class="form-control" 
-                       name="email" 
+                <input type="email"
+                       class="form-control"
+                       name="email"
                        placeholder="อีเมล"
-                       value="somchai@example.com"
                        required>
             </div>
 
             <div class="mb-4">
-                <input type="password" 
-                       class="form-control" 
-                       name="password" 
+                <input type="password"
+                       class="form-control"
+                       name="password"
                        placeholder="รหัสผ่าน"
-                       value="password"
                        required>
             </div>
 
@@ -127,13 +111,6 @@
                 <i class="fas fa-sign-in-alt me-2"></i>เข้าสู่ระบบ
             </button>
         </form>
-        
-        <div class="demo-info">
-            <i class="fas fa-info-circle me-2"></i>
-            <strong>ข้อมูลทดสอบ:</strong><br>
-            Email: <strong>somchai@example.com</strong><br>
-            Password: <strong>password</strong>
-        </div>
     </div>
 </body>
 </html>
