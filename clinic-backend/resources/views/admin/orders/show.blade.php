@@ -495,17 +495,17 @@
             @else
                 <!-- Upload form for delivery proof -->
                 @if(in_array($order->status, ['paid', 'confirmed', 'processing']))
-                <form id="deliveryProofForm" enctype="multipart/form-data" style="max-width: 500px;">
+                <form id="deliveryProofForm" enctype="multipart/form-data" style="max-width: 500px;" onsubmit="return uploadDeliveryProof(event);">
                     <div style="margin-bottom: 1rem;">
                         <label for="deliveryImage" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">อัพโหลดรูปหลักฐานการจัดส่ง:</label>
                         <input type="file" id="deliveryImage" name="image" accept="image/*" required
                                style="width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 6px;">
                         <small style="color: #6b7280;">ไฟล์ภาพ (JPEG, PNG, JPG) ขนาดไม่เกิน 5MB</small>
                     </div>
-                    
+
                     <div style="margin-bottom: 1rem;">
                         <label for="notes" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">หมายเหตุ (ถ้ามี):</label>
-                        <textarea id="notes" name="notes" rows="3" 
+                        <textarea id="notes" name="notes" rows="3"
                                   style="width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 6px;"
                                   placeholder="หมายเหตุเพิ่มเติม..."></textarea>
                     </div>
@@ -623,21 +623,21 @@
         }
 
         // Delivery proof functions
-        document.getElementById('deliveryProofForm')?.addEventListener('submit', async function(e) {
+        async function uploadDeliveryProof(e) {
             e.preventDefault();
-            
+
             const formData = new FormData();
             const imageFile = document.getElementById('deliveryImage').files[0];
             const notes = document.getElementById('notes').value;
-            
+
             if (!imageFile) {
                 alert('กรุณาเลือกไฟล์รูปภาพ');
-                return;
+                return false;
             }
-            
+
             formData.append('image', imageFile);
             formData.append('notes', notes);
-            
+
             try {
                 const response = await fetch(`/admin/orders/{{ $order->id }}/delivery-proof`, {
                     method: 'POST',
@@ -646,9 +646,9 @@
                     },
                     body: formData
                 });
-                
+
                 const result = await response.json();
-                
+
                 if (result.success) {
                     document.getElementById('success-message').style.display = 'block';
                     document.getElementById('success-message').textContent = result.message;
@@ -663,7 +663,9 @@
                 document.getElementById('error-message').style.display = 'block';
                 document.getElementById('error-message').textContent = 'เกิดข้อผิดพลาดในการอัพโหลด';
             }
-        });
+
+            return false;
+        }
 
         async function deleteDeliveryProof(orderId) {
             if (!confirm('คุณต้องการลบหลักฐานการจัดส่งนี้หรือไม่?')) return;
