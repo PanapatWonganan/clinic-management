@@ -327,10 +327,9 @@ class OrderDetailScreen extends StatelessWidget {
   }
 
   Widget _buildOrderSummaryCard() {
-    final subtotal =
-        order.items.fold(0.0, (sum, item) => sum + item.totalPrice);
-    const discount = 25000.0; // Mock discount
-    const deliveryFee = 50.0; // Mock delivery fee
+    final subtotal = order.subtotal;
+    final discount = order.discount;
+    final deliveryFee = order.deliveryFee;
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -368,10 +367,13 @@ class OrderDetailScreen extends StatelessWidget {
           _buildSummaryRow(
               'ค่าจัดส่ง', '฿${NumberFormat('#,##0').format(deliveryFee)}'),
           const SizedBox(height: 8),
-          _buildSummaryRow(
-              'ส่วนลด', '-฿${NumberFormat('#,##0').format(discount)}',
-              valueColor: AppColors.mainPink),
-          const SizedBox(height: 16),
+          if (discount > 0) ...[
+            _buildSummaryRow(
+                'ส่วนลด', '-฿${NumberFormat('#,##0').format(discount)}',
+                valueColor: AppColors.mainPink),
+            const SizedBox(height: 8),
+          ],
+          const SizedBox(height: 8),
           Container(
             height: 1,
             color: AppColors.lightGray.withValues(alpha:0.3),
