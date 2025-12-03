@@ -25,7 +25,7 @@ class DatabaseSeeder extends Seeder
             DeliveryPriceSeeder::class,
             RoleSeeder::class,
             MembershipUpgradeSeeder::class,
-            ExMemberBundleDealSeeder::class,
+            MembershipBundleDealSeeder::class,
             ExVipBundleDealSeeder::class,
             ExSuperVipBundleDealSeeder::class,
             ExDoctorBundleDealSeeder::class,

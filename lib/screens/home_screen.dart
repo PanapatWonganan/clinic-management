@@ -180,11 +180,13 @@ class _HomeScreenState extends State<HomeScreen> {
             MaterialPageRoute(
               builder: (context) => CheckoutScreen(cartItems: cartItems),
             ),
-          ).then((_) {
+          ).then((_) async {
             // Reset selected index เมื่อกลับมาจากหน้า Checkout
             setState(() {
               _selectedIndex = 0;
             });
+            // Reload membership progress หลังจากสั่งซื้อสินค้า
+            await _loadMembershipProgress();
           });
         }
         break;
@@ -602,7 +604,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   MaterialPageRoute(
                     builder: (context) => CheckoutScreen(cartItems: cartItems),
                   ),
-                );
+                ).then((_) async {
+                  // Reload membership progress หลังจากสั่งซื้อสินค้า
+                  await _loadMembershipProgress();
+                });
               }
             : null,
         style: ElevatedButton.styleFrom(
