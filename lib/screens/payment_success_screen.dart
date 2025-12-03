@@ -228,7 +228,6 @@ class PaymentSuccessScreen extends StatelessWidget {
                           totalAmount: totalAmount ?? 25050.0,
                           subtotal: (totalAmount ?? 25050.0) - 50,
                           deliveryFee: 50,
-                          discount: 0,
                           status: OrderStatus.pending,
                           deliveryMethod: 'มอเตอร์ไซค์',
                           paymentMethod: 'บัตรเครดิต',
