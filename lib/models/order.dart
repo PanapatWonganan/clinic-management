@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../constants/app_config.dart';
 
 class Order {
   final String id;
@@ -83,12 +84,27 @@ class OrderItem {
 
   factory OrderItem.fromJson(Map<String, dynamic> json) {
     final product = json['product'] as Map<String, dynamic>? ?? {};
+
+    // Use image_url from backend, fallback to name-based mapping
+    String imageUrl = product['image_url'] ?? '';
+    String imagePath;
+
+    if (imageUrl.isNotEmpty) {
+      // Use the actual image URL from backend
+      imagePath = imageUrl.startsWith('http')
+          ? imageUrl
+          : '${AppConfig.storageBaseUrl}/$imageUrl';
+    } else {
+      // Fallback: map from product name (legacy behavior)
+      imagePath = _getImagePath(product['name']);
+    }
+
     return OrderItem(
       id: json['id'].toString(),
       name: product['name'] ?? 'Unknown Product',
       quantity: int.parse(json['quantity'].toString()),
       price: double.parse(json['unit_price'].toString()),
-      imagePath: _getImagePath(product['name']),
+      imagePath: imagePath,
     );
   }
 
