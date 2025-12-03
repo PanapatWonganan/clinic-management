@@ -73,6 +73,7 @@ class DeliveryOption {
   }
 
   // Get sample delivery options (fallback for when API is not available)
+  // Using average prices from delivery_prices table
   static List<DeliveryOption> getSampleOptions() {
     return [
       // Motorcycle options
@@ -81,7 +82,7 @@ class DeliveryOption {
         company: DeliveryCompany.grab,
         displayName: 'Grab - มอเตอร์ไซค์',
         subtitle: '30-60 นาที',
-        price: 45.0,
+        price: 108.0,
         estimatedTime: '30-60 นาที',
       ),
       DeliveryOption(
@@ -89,7 +90,7 @@ class DeliveryOption {
         company: DeliveryCompany.lalamove,
         displayName: 'Lalamove - มอเตอร์ไซค์',
         subtitle: '25-50 นาที',
-        price: 40.0,
+        price: 103.0,
         estimatedTime: '25-50 นาที',
       ),
       // Car options
@@ -98,7 +99,7 @@ class DeliveryOption {
         company: DeliveryCompany.grab,
         displayName: 'Grab - รถยนต์',
         subtitle: '45-90 นาที',
-        price: 80.0,
+        price: 195.0,
         estimatedTime: '45-90 นาที',
       ),
       DeliveryOption(
@@ -106,7 +107,7 @@ class DeliveryOption {
         company: DeliveryCompany.lalamove,
         displayName: 'Lalamove - รถยนต์',
         subtitle: '40-80 นาที',
-        price: 75.0,
+        price: 191.0,
         estimatedTime: '40-80 นาที',
       ),
     ];
