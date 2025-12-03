@@ -40,8 +40,8 @@ class _PaymentWebViewScreenState extends State<PaymentWebViewScreen> {
     super.initState();
 
     if (kIsWeb) {
-      // For web, automatically open payment URL in new tab
-      _openPaymentUrlInNewTab();
+      // For web, don't auto-open (browsers block popups)
+      // User will click button to open
       // Start polling payment status
       _startStatusPolling();
     } else {
@@ -373,10 +373,11 @@ class _PaymentWebViewScreenState extends State<PaymentWebViewScreen> {
 
                 // Title
                 Text(
-                  'หน้าชำระเงินเปิดในแท็บใหม่แล้ว',
+                  'พร้อมชำระเงิน',
                   style: AppTextStyles.body16Medium.copyWith(
                     color: AppColors.purpleText,
                     fontWeight: FontWeight.bold,
+                    fontSize: 24,
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -384,7 +385,7 @@ class _PaymentWebViewScreenState extends State<PaymentWebViewScreen> {
 
                 // Description
                 Text(
-                  'กรุณาชำระเงินในแท็บที่เปิดขึ้นมาใหม่\nระบบจะตรวจสอบสถานะการชำระเงินอัตโนมัติ',
+                  'กดปุ่มด้านล่างเพื่อเปิดหน้าชำระเงิน\nระบบจะตรวจสอบสถานะอัตโนมัติ',
                   style: AppTextStyles.body14Medium.copyWith(
                     color: AppColors.purpleText.withValues(alpha: 0.7),
                     fontWeight: FontWeight.normal,
@@ -393,10 +394,27 @@ class _PaymentWebViewScreenState extends State<PaymentWebViewScreen> {
                 ),
                 const SizedBox(height: 32),
 
+                // Open payment button - PRIMARY ACTION
+                ElevatedButton.icon(
+                  onPressed: () => _openPaymentUrlInNewTab(),
+                  icon: const Icon(Icons.credit_card, size: 28),
+                  label: const Text('เปิดหน้าชำระเงิน', style: TextStyle(fontSize: 18)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.mainPurple,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 48,
+                      vertical: 20,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+
                 // Status indicator
-                if (!_isCheckingStatus)
-                  const CircularProgressIndicator()
-                else
+                if (_isCheckingStatus)
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -414,19 +432,17 @@ class _PaymentWebViewScreenState extends State<PaymentWebViewScreen> {
                       ),
                     ],
                   ),
-                const SizedBox(height: 32),
+
+                if (_isCheckingStatus)
+                  const SizedBox(height: 24),
 
                 // Manual check button
-                ElevatedButton.icon(
+                TextButton.icon(
                   onPressed: () => _checkPaymentStatus(expectSuccess: true),
-                  icon: const Icon(Icons.refresh),
-                  label: const Text('ตรวจสอบทันที'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.mainPurple,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 32,
-                      vertical: 16,
-                    ),
+                  icon: const Icon(Icons.refresh, size: 20),
+                  label: const Text('ตรวจสอบสถานะ'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.mainPurple,
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -460,7 +476,7 @@ class _PaymentWebViewScreenState extends State<PaymentWebViewScreen> {
                       const SizedBox(width: 12),
                       Expanded(
                         child: Text(
-                          'หากแท็บชำระเงินไม่เปิดโดยอัตโนมัติ กรุณาตรวจสอบการบล็อก pop-up ของเบราว์เซอร์',
+                          'กดปุ่ม "เปิดหน้าชำระเงิน" แล้วชำระเงินในแท็บใหม่\nเมื่อชำระเสร็จกลับมาที่หน้านี้เพื่อตรวจสอบสถานะ',
                           style: AppTextStyles.body12Regular.copyWith(
                             color: Colors.blue.shade900,
                           ),
