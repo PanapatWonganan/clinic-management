@@ -90,10 +90,18 @@ class OrderItem {
     String imagePath;
 
     if (imageUrl.isNotEmpty) {
-      // Use the actual image URL from backend
-      imagePath = imageUrl.startsWith('http')
-          ? imageUrl
-          : '${AppConfig.storageBaseUrl}/$imageUrl';
+      // Extract relative path from full URL if needed
+      if (imageUrl.contains('/storage/')) {
+        // Extract path after /storage/
+        final relativePath = imageUrl.split('/storage/').last;
+        imagePath = '${AppConfig.storageBaseUrl}/$relativePath';
+      } else if (imageUrl.startsWith('http')) {
+        // Already a full URL, use as is
+        imagePath = imageUrl;
+      } else {
+        // Relative path, prepend storage base URL
+        imagePath = '${AppConfig.storageBaseUrl}/$imageUrl';
+      }
     } else {
       // Fallback: map from product name (legacy behavior)
       imagePath = _getImagePath(product['name']);
