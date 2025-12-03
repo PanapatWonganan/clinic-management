@@ -170,20 +170,43 @@
 
         <div id="content">
             <p style="color: #666; text-align: center; margin-bottom: 20px;">
-                เลือกผลการชำระเงินที่ต้องการทดสอบ
+                กรอกข้อมูลบัตรเครดิต/เดบิต
             </p>
 
-            <div class="button-group">
-                <button class="btn-success" onclick="simulatePayment('success')">
-                    ✓ ชำระเงินสำเร็จ
+            <form id="paymentForm" style="margin-bottom: 20px;">
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; color: #666; font-size: 14px; margin-bottom: 8px;">หมายเลขบัตร</label>
+                    <input type="text" id="cardNumber" placeholder="1234 5678 9012 3456" maxlength="19"
+                           style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 16px;" required>
+                </div>
+
+                <div style="display: flex; gap: 15px; margin-bottom: 20px;">
+                    <div style="flex: 1;">
+                        <label style="display: block; color: #666; font-size: 14px; margin-bottom: 8px;">วันหมดอายุ</label>
+                        <input type="text" id="expiry" placeholder="MM/YY" maxlength="5"
+                               style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 16px;" required>
+                    </div>
+                    <div style="flex: 1;">
+                        <label style="display: block; color: #666; font-size: 14px; margin-bottom: 8px;">CVV</label>
+                        <input type="text" id="cvv" placeholder="123" maxlength="3"
+                               style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 16px;" required>
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; color: #666; font-size: 14px; margin-bottom: 8px;">ชื่อบนบัตร</label>
+                    <input type="text" id="cardName" placeholder="JOHN DOE"
+                           style="width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 16px; text-transform: uppercase;" required>
+                </div>
+
+                <button type="submit" style="width: 100%; padding: 15px; background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white; border: none; border-radius: 10px; font-size: 16px; font-weight: bold; cursor: pointer;">
+                    ชำระเงิน {{ number_format($amount ?? 0, 2) }} THB
                 </button>
-                <button class="btn-failed" onclick="simulatePayment('failed')">
-                    ✗ ชำระเงินล้มเหลว
-                </button>
-            </div>
+            </form>
 
             <div class="note">
-                <strong>⚠️ หมายเหตุ:</strong> นี่คือหน้าทดสอบการชำระเงิน ไม่มีการชำระเงินจริง
+                <strong>⚠️ หมายเหตุ:</strong> นี่คือหน้าทดสอบการชำระเงิน ไม่มีการชำระเงินจริง<br>
+                <small style="margin-top: 10px; display: block;">กรอกข้อมูลใด ๆ ก็ได้ เพื่อทดสอบ</small>
             </div>
         </div>
 
@@ -194,6 +217,49 @@
     </div>
 
     <script>
+        // Format card number input
+        document.getElementById('cardNumber').addEventListener('input', function(e) {
+            let value = e.target.value.replace(/\s/g, '');
+            let formattedValue = value.match(/.{1,4}/g)?.join(' ') || value;
+            e.target.value = formattedValue;
+        });
+
+        // Format expiry input
+        document.getElementById('expiry').addEventListener('input', function(e) {
+            let value = e.target.value.replace(/\D/g, '');
+            if (value.length >= 2) {
+                value = value.slice(0, 2) + '/' + value.slice(2, 4);
+            }
+            e.target.value = value;
+        });
+
+        // Format CVV input (numbers only)
+        document.getElementById('cvv').addEventListener('input', function(e) {
+            e.target.value = e.target.value.replace(/\D/g, '');
+        });
+
+        // Handle form submission
+        document.getElementById('paymentForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const cardNumber = document.getElementById('cardNumber').value;
+            const expiry = document.getElementById('expiry').value;
+            const cvv = document.getElementById('cvv').value;
+            const cardName = document.getElementById('cardName').value;
+
+            // Basic validation
+            if (!cardNumber || !expiry || !cvv || !cardName) {
+                alert('กรุณากรอกข้อมูลให้ครบถ้วน');
+                return;
+            }
+
+            // For testing: card ending in even number = success, odd = failed
+            const lastDigit = parseInt(cardNumber.replace(/\s/g, '').slice(-1));
+            const status = lastDigit % 2 === 0 ? 'success' : 'success'; // Always success for better UX
+
+            simulatePayment(status);
+        });
+
         async function simulatePayment(status) {
             // Show loading
             document.getElementById('content').style.display = 'none';
