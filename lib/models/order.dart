@@ -89,22 +89,31 @@ class OrderItem {
     String imageUrl = product['image_url'] ?? '';
     String imagePath;
 
+    // DEBUG
+    print('🔍 OrderItem.fromJson - Product: ${product['name']}');
+    print('🔍 image_url from backend: $imageUrl');
+
     if (imageUrl.isNotEmpty) {
       // Extract relative path from full URL if needed
       if (imageUrl.contains('/storage/')) {
         // Extract path after /storage/
         final relativePath = imageUrl.split('/storage/').last;
         imagePath = '${AppConfig.storageBaseUrl}/$relativePath';
+        print('🔍 Extracted relative path: $relativePath');
+        print('🔍 Final imagePath: $imagePath');
       } else if (imageUrl.startsWith('http')) {
         // Already a full URL, use as is
         imagePath = imageUrl;
+        print('🔍 Using full URL as is: $imagePath');
       } else {
         // Relative path, prepend storage base URL
         imagePath = '${AppConfig.storageBaseUrl}/$imageUrl';
+        print('🔍 Prepended storageBaseUrl: $imagePath');
       }
     } else {
       // Fallback: map from product name (legacy behavior)
       imagePath = _getImagePath(product['name']);
+      print('🔍 Using name-based fallback: $imagePath');
     }
 
     return OrderItem(
