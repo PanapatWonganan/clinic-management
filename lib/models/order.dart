@@ -6,6 +6,9 @@ class Order {
   final String orderNumber;
   final DateTime orderDate;
   final double totalAmount;
+  final double subtotal;
+  final double deliveryFee;
+  final double discount;
   final OrderStatus status;
   final List<OrderItem> items;
   final String deliveryMethod;
@@ -18,6 +21,9 @@ class Order {
     required this.orderNumber,
     required this.orderDate,
     required this.totalAmount,
+    required this.subtotal,
+    required this.deliveryFee,
+    required this.discount,
     required this.status,
     required this.items,
     required this.deliveryMethod,
@@ -32,6 +38,9 @@ class Order {
       orderNumber: json['order_number'] ?? '',
       orderDate: DateTime.parse(json['created_at'] ?? DateTime.now().toIso8601String()),
       totalAmount: double.parse(json['total_amount'].toString()),
+      subtotal: double.parse((json['subtotal'] ?? 0).toString()),
+      deliveryFee: double.parse((json['delivery_fee'] ?? 0).toString()),
+      discount: double.parse((json['discount'] ?? 0).toString()),
       status: _parseOrderStatus(json['status']),
       items: (json['order_items'] as List<dynamic>? ?? [])
           .map((item) => OrderItem.fromJson(item))
@@ -39,7 +48,7 @@ class Order {
       deliveryMethod: json['delivery_method'] ?? '',
       paymentMethod: json['payment_method'] ?? '',
       trackingNumber: json['tracking_number'],
-      deliveryProof: json['delivery_proof'] != null 
+      deliveryProof: json['delivery_proof'] != null
           ? DeliveryProof.fromJson(json['delivery_proof'])
           : null,
     );

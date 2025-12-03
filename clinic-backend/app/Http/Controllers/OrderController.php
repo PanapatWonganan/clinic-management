@@ -51,6 +51,7 @@ class OrderController extends Controller
             'delivery_method' => 'required|in:pickup,delivery',
             'payment_method' => 'required|in:cash,transfer,credit_card,qr_code',
             'delivery_fee' => 'nullable|numeric|min:0',
+            'discount' => 'nullable|numeric|min:0',
             'shipping_address_id' => 'nullable|exists:customer_addresses,id',
             'notes' => 'nullable|string|max:500'
         ]);
@@ -95,10 +96,11 @@ class OrderController extends Controller
                 }
             }
 
-            // Calculate total amount and prepare order items
+            // Calculate subtotal and prepare order items
+            $subtotal = 0;
             foreach ($request->items as $item) {
                 $product = Product::findOrFail($item['product_id']);
-                
+
                 // Check stock availability (still validate, but don't reduce yet)
                 if ($product->stock < $item['quantity']) {
                     return response()->json([
@@ -109,7 +111,7 @@ class OrderController extends Controller
 
                 $unitPrice = $product->price;
                 $totalPrice = $unitPrice * $item['quantity'];
-                $totalAmount += $totalPrice;
+                $subtotal += $totalPrice;
 
                 $orderItems[] = [
                     'product_id' => $product->id,
@@ -120,9 +122,12 @@ class OrderController extends Controller
                 ];
             }
 
-            // Add delivery fee to total amount
+            // Get delivery fee and discount
             $deliveryFee = $request->delivery_fee ?? 0;
-            $totalAmount += $deliveryFee;
+            $discount = $request->discount ?? 0;
+
+            // Calculate total amount
+            $totalAmount = $subtotal + $deliveryFee - $discount;
 
             // Generate order number
             $orderNumber = 'ORD-' . date('Ymd') . '-' . str_pad(Order::whereDate('created_at', today())->count() + 1, 3, '0', STR_PAD_LEFT);
@@ -132,6 +137,9 @@ class OrderController extends Controller
                 'order_number' => $orderNumber,
                 'user_id' => $user->id,
                 'shipping_address_id' => $shippingAddressId,
+                'subtotal' => $subtotal,
+                'delivery_fee' => $deliveryFee,
+                'discount' => $discount,
                 'total_amount' => $totalAmount,
                 'status' => Order::STATUS_PENDING_PAYMENT, // Don't reduce stock yet
                 'delivery_method' => $request->delivery_method,

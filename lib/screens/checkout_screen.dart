@@ -354,7 +354,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             selectedDeliveryOption != null ? 'delivery' : 'pickup',
         'payment_method':
             selectedPaymentMethod == 'credit_card' ? 'credit_card' : 'qr_code',
-        'delivery_fee': deliveryFee, // Include delivery fee
+        'delivery_fee': deliveryFee,
+        'discount': discount,
         'notes':
             'Order from Flutter app - ${selectedDeliveryOption?.fullDisplayName ?? 'Pickup'} - Total: ฿${total.toStringAsFixed(0)}',
         if (selectedAddress != null && selectedDeliveryOption != null)
@@ -864,33 +865,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
           const SizedBox(height: 16),
 
-          // Reward info
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: AppColors.lightPurple.withOpacity(0.5),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Row(
-              children: [
-                const Icon(
-                  Icons.card_giftcard,
-                  color: AppColors.mainPink,
-                  size: 20,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'คุณได้รับสิทธิ์ 10 ชิ้น ฟรี 10 ชิ้น (คละได้)',
-                    style: AppTextStyles.body12Regular.copyWith(
-                      color: AppColors.mainPink,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
+          // Reward info - removed hardcoded text
         ],
       ),
     );

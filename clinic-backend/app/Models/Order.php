@@ -15,6 +15,9 @@ class Order extends Model
         'user_id',
         'shipping_address_id',
         'total_amount',
+        'subtotal',
+        'delivery_fee',
+        'discount',
         'status',
         'delivery_method',
         'payment_method',
@@ -26,6 +29,9 @@ class Order extends Model
 
     protected $casts = [
         'total_amount' => 'decimal:2',
+        'subtotal' => 'decimal:2',
+        'delivery_fee' => 'decimal:2',
+        'discount' => 'decimal:2',
     ];
 
     // Relationship with User

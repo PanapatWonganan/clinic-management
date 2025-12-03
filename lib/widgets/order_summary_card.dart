@@ -55,12 +55,13 @@ class OrderSummaryCard extends StatelessWidget {
           const SizedBox(height: 12),
 
           // Discount
-          _buildSummaryRow(
-            'ส่วนลด (Level 2)',
-            '-฿${discount.toStringAsFixed(0)}',
-            false,
-            valueColor: AppColors.mainPink,
-          ),
+          if (discount > 0)
+            _buildSummaryRow(
+              'ส่วนลด',
+              '-฿${discount.toStringAsFixed(0)}',
+              false,
+              valueColor: AppColors.mainPink,
+            ),
 
           const SizedBox(height: 16),
 
@@ -81,33 +82,7 @@ class OrderSummaryCard extends StatelessWidget {
 
           const SizedBox(height: 16),
 
-          // Reward info
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: AppColors.lightPurple.withValues(alpha:0.5),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Row(
-              children: [
-                const Icon(
-                  Icons.card_giftcard,
-                  color: AppColors.mainPink,
-                  size: 20,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'คุณได้รับสิทธิ์ 10 ชิ้น ฟรี 10 ชิ้น (คละได้)',
-                    style: AppTextStyles.body12Regular.copyWith(
-                      color: AppColors.mainPink,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
+          // Reward info - removed hardcoded text
         ],
       ),
     );
