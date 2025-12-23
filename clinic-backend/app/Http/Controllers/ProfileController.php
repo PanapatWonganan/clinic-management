@@ -117,8 +117,14 @@ class ProfileController extends Controller
         $this->checkAndUpgradeMembership($user);
 
         // Calculate real data from user's orders
+        // รวม pending_payment และ payment_uploaded ด้วย เพราะ order เริ่มต้นจะอยู่ status นี้
+        // ไม่นับ orders ที่เป็น free item (is_free_item_order = true)
         $completedOrders = $user->orders()
-            ->whereIn('status', ['confirmed', 'processing', 'shipped', 'delivered'])
+            ->whereIn('status', ['pending_payment', 'payment_uploaded', 'paid', 'confirmed', 'processing', 'shipped', 'delivered'])
+            ->where(function ($query) {
+                $query->where('is_free_item_order', false)
+                      ->orWhereNull('is_free_item_order');
+            })
             ->with('orderItems')
             ->get();
 
@@ -130,7 +136,7 @@ class ProfileController extends Controller
         // Calculate points: 1 point per 10,000 baht spent
         $currentPoints = floor($totalSpent / 10000);
 
-        // ดึงรางวัลที่แลกไปแล้ว (approved) เพื่อหัก quantity ออก
+        // ดึงรางวัลที่แลกไปแล้ว (approved) เพื่อหา reset point
         $claimedRewards = \App\Models\UserClaimedReward::where('user_id', $user->id)
             ->where('status', 'approved')
             ->get();
@@ -155,44 +161,52 @@ class ProfileController extends Controller
         $totalEarnedItems = 0;
         $totalSavings = 0;
 
-        // ตรวจสอบว่ามีการแลกรางวัลไปแล้วหรือไม่
-        $hasClaimedAnyReward = $claimedRewards->isNotEmpty();
+        // ===== FLOW A: แลกแล้ว reset นับใหม่ =====
+        // ถ้ามีการแลกรางวัล (approved) → นับ quantity หลังจากแลกล่าสุด
+        // ถ้ายังไม่เคยแลก → นับ quantity ทั้งหมด
 
-        // กำหนด base quantity ที่จะใช้คำนวณ
-        $baseQuantity = $totalPurchasedQuantity;
+        $hasClaimedAnyReward = $claimedRewards->isNotEmpty();
+        $effectiveQuantity = $totalPurchasedQuantity; // quantity ที่ใช้คำนวณ progress
 
         if ($hasClaimedAnyReward) {
-            // ถ้าแลกรางวัลไปแล้ว ให้เริ่มใหม่หมด - ใช้ quantity หลังจากแลกล่าสุด
+            // หาการแลกล่าสุด (approved)
             $latestClaim = $claimedRewards->sortByDesc('created_at')->first();
 
-            // หา orders ที่เกิดขึ้นหลังจากแลกรางวัลล่าสุด
-            $ordersAfterClaim = $user->orders()
-                ->whereIn('status', ['confirmed', 'processing', 'shipped', 'delivered', 'payment_uploaded'])
-                ->where('created_at', '>', $latestClaim->created_at)
-                ->with('orderItems')
-                ->get();
+            // นับ quantity จาก orders หลังจากแลกล่าสุด
+            // ถ้า claim มี order_id → ใช้ order_id เป็นตัวกรอง
+            // ถ้า claim ไม่มี order_id (claim แยกจาก order) → ใช้ created_at ของ claim เป็นตัวกรอง
+            // ไม่นับ orders ที่เป็น free item
+            $ordersQuery = $user->orders()
+                ->whereIn('status', ['pending_payment', 'payment_uploaded', 'paid', 'confirmed', 'processing', 'shipped', 'delivered'])
+                ->where(function ($q) {
+                    $q->where('is_free_item_order', false)->orWhereNull('is_free_item_order');
+                });
 
-            $baseQuantity = $ordersAfterClaim->sum(function ($order) {
+            if ($latestClaim->order_id) {
+                // Claim มี order_id → นับ orders ที่มี id > order_id ของ claim
+                $ordersQuery->where('id', '>', $latestClaim->order_id);
+            } else {
+                // Claim ไม่มี order_id → นับ orders ที่สร้างหลัง claim
+                $ordersQuery->where('created_at', '>', $latestClaim->created_at);
+            }
+
+            $ordersAfterClaim = $ordersQuery->with('orderItems')->get();
+
+            $effectiveQuantity = $ordersAfterClaim->sum(function ($order) {
                 return $order->orderItems->sum('quantity');
             });
         }
 
-        // ดึง levels ที่เคยแลกไปแล้ว
-        $claimedLevels = $claimedRewards->pluck('level')->toArray();
-
-        // คำนวณ cascading levels - แต่ละ level ใช้ items ที่เหลือจาก level ก่อนหน้า
-        $remainingQuantity = $baseQuantity;
-
+        // คำนวณ level progress โดยใช้ effectiveQuantity
         foreach ($bundleDeals as $deal) {
-            // Logic ง่ายๆ: ตรวจสอบว่ามี quantity พอแลกหรือไม่
-            if ($baseQuantity >= $deal->required_quantity) {
+            if ($effectiveQuantity >= $deal->required_quantity) {
                 $canClaim = true;
-                $currentProgress = 100; // ครบแล้ว สามารถแลกได้
+                $currentProgress = 100;
                 $remainingForNext = 0;
             } else {
                 $canClaim = false;
-                $currentProgress = ($baseQuantity / $deal->required_quantity) * 100;
-                $remainingForNext = $deal->required_quantity - $baseQuantity;
+                $currentProgress = ($effectiveQuantity / $deal->required_quantity) * 100;
+                $remainingForNext = $deal->required_quantity - $effectiveQuantity;
             }
 
             $levelProgress[] = [
@@ -201,7 +215,7 @@ class ProfileController extends Controller
                 'display_name' => $deal->display_name,
                 'required_quantity' => $deal->required_quantity,
                 'free_quantity' => $deal->free_quantity,
-                'current_quantity' => min($baseQuantity, $deal->required_quantity),
+                'current_quantity' => min($effectiveQuantity, $deal->required_quantity),
                 'progress_percentage' => round($currentProgress, 1),
                 'is_completed' => $canClaim,
                 'completed_bundles' => $canClaim ? 1 : 0,
@@ -218,21 +232,50 @@ class ProfileController extends Controller
             }
         }
 
+        // available_rewards = levels ที่ครบแล้วและยังไม่ได้แลก (ในรอบนี้)
+        // เนื่องจาก Flow A reset หมดเมื่อแลก จึงไม่ต้อง track claimedLevels
+        $availableRewards = $this->getAvailableRewardsSimple($levelProgress);
+
         return response()->json([
             'success' => true,
             'data' => [
                 'user_id' => $user->id,
                 'membership_type' => $user->membership_type ?? 'exMember',
                 'total_purchased_quantity' => $totalPurchasedQuantity,
+                'effective_quantity' => $effectiveQuantity, // quantity ที่ใช้คำนวณ (หลัง reset)
                 'total_spent' => $totalSpent,
                 'current_points' => $currentPoints,
                 'total_earned_items' => $totalEarnedItems,
                 'total_savings' => $totalSavings,
                 'level_progress' => $levelProgress,
-                'next_milestone' => $this->getNextMilestone($totalPurchasedQuantity, $bundleDeals),
-                'available_rewards' => $this->getAvailableRewards($levelProgress, $claimedLevels)
+                'next_milestone' => $this->getNextMilestone($effectiveQuantity, $bundleDeals),
+                'available_rewards' => $availableRewards,
+                'has_claimed_before' => $hasClaimedAnyReward,
+                'last_claim_date' => $hasClaimedAnyReward ? $claimedRewards->sortByDesc('created_at')->first()->created_at->toISOString() : null
             ]
         ]);
+    }
+
+    // Simple version for Flow A - ไม่ต้อง track claimed levels เพราะ reset หมดเมื่อแลก
+    private function getAvailableRewardsSimple($levelProgress)
+    {
+        $availableRewards = [];
+
+        foreach ($levelProgress as $level) {
+            if ($level['is_completed'] && $level['completed_bundles'] > 0) {
+                $availableRewards[] = [
+                    'level' => $level['level'],
+                    'required_quantity' => intval($level['required_quantity']),
+                    'earned_free_items' => intval($level['earned_free_items']),
+                    'savings_amount' => floatval($level['savings_amount']),
+                    'unit_price' => floatval($level['unit_price']),
+                    'display_name' => $level['display_name'],
+                    'completed_bundles' => intval($level['completed_bundles'])
+                ];
+            }
+        }
+
+        return $availableRewards;
     }
 
     private function getNextMilestone($currentQuantity, $bundleDeals)
@@ -287,59 +330,93 @@ class ProfileController extends Controller
         $user = $request->user();
 
         $validated = $request->validate([
-            'level' => 'required|integer|min:1|max:3',
+            'level' => 'required|integer|min:1|max:6',
             'reward_type' => 'required|string|in:bundle_deal',
         ]);
 
-        // ตรวจสอบว่าผู้ใช้เคยแลกรางวัลนี้แล้วหรือไม่
-        $existingClaim = \App\Models\UserClaimedReward::where('user_id', $user->id)
+        // ===== FLOW A: แลกแล้ว reset =====
+        // ไม่ต้องตรวจสอบว่าแลกไปแล้วหรือยัง เพราะทุกครั้งที่แลก reset ใหม่หมด
+        // แต่ต้องตรวจสอบว่ามีสิทธิ์แลกหรือไม่ (quantity พอ)
+
+        // คำนวณ effective quantity (หลัง reset)
+        $claimedRewards = \App\Models\UserClaimedReward::where('user_id', $user->id)
+            ->where('status', 'approved')
+            ->get();
+
+        $completedOrders = $user->orders()
+            ->whereIn('status', ['pending_payment', 'payment_uploaded', 'paid', 'confirmed', 'processing', 'shipped', 'delivered'])
+            ->with('orderItems')
+            ->get();
+
+        $totalPurchasedQuantity = $completedOrders->sum(function ($order) {
+            return $order->orderItems->sum('quantity');
+        });
+
+        $effectiveQuantity = $totalPurchasedQuantity;
+
+        if ($claimedRewards->isNotEmpty()) {
+            $latestClaim = $claimedRewards->sortByDesc('created_at')->first();
+            // ถ้า claim มี order_id → ใช้ order_id, ถ้าไม่มี → ใช้ created_at
+            // ไม่นับ orders ที่เป็น free item
+            $ordersQuery = $user->orders()
+                ->whereIn('status', ['pending_payment', 'payment_uploaded', 'paid', 'confirmed', 'processing', 'shipped', 'delivered'])
+                ->where(function ($q) {
+                    $q->where('is_free_item_order', false)->orWhereNull('is_free_item_order');
+                });
+
+            if ($latestClaim->order_id) {
+                $ordersQuery->where('id', '>', $latestClaim->order_id);
+            } else {
+                $ordersQuery->where('created_at', '>', $latestClaim->created_at);
+            }
+
+            $ordersAfterClaim = $ordersQuery->with('orderItems')->get();
+
+            $effectiveQuantity = $ordersAfterClaim->sum(function ($order) {
+                return $order->orderItems->sum('quantity');
+            });
+        }
+
+        // ดึง bundle deal ที่ต้องการแลก
+        $membershipToRoleId = [
+            'exMember' => 1, 'exVip' => 2, 'exSuperVip' => 3, 'exDoctor' => 4,
+        ];
+        $roleId = $membershipToRoleId[$user->membership_type] ?? 1;
+
+        $targetDeal = \App\Models\MembershipBundleDeal::where('is_active', true)
+            ->where('role_id', $roleId)
             ->where('level', $validated['level'])
-            ->where('reward_type', $validated['reward_type'])
             ->first();
 
-        if ($existingClaim) {
+        if (!$targetDeal) {
             return response()->json([
                 'success' => false,
-                'message' => 'คุณได้แลกรางวัลนี้ไปแล้ว',
-                'error' => 'ALREADY_CLAIMED',
-                'claim_status' => $existingClaim->status,
-                'claimed_at' => $existingClaim->created_at->toISOString()
+                'message' => 'ไม่พบระดับรางวัลนี้',
+                'error' => 'LEVEL_NOT_FOUND'
             ], 400);
         }
 
-        // ตรวจสอบว่าผู้ใช้มีสิทธิ์แลกรางวัลนี้หรือไม่
-        $progressData = $this->getMembershipProgressData($user);
-
-        // ดึง levels ที่เคยแลกไปแล้ว (ยกเว้นการแลกปัจจุบัน)
-        $claimedLevels = \App\Models\UserClaimedReward::where('user_id', $user->id)
-            ->where('status', 'approved')
-            ->pluck('level')
-            ->toArray();
-
-        $availableRewards = $this->getAvailableRewards($progressData['level_progress'], $claimedLevels);
-
-        $targetReward = null;
-        foreach ($availableRewards as $reward) {
-            if ($reward['level'] == $validated['level']) {
-                $targetReward = $reward;
-                break;
-            }
-        }
-
-        if (!$targetReward) {
+        // ตรวจสอบว่า quantity พอแลกหรือไม่
+        if ($effectiveQuantity < $targetDeal->required_quantity) {
             return response()->json([
                 'success' => false,
-                'message' => 'ไม่พบสิทธิ์การแลกรางวัลระดับนี้',
-                'error' => 'REWARD_NOT_AVAILABLE'
+                'message' => "ยอดซื้อไม่เพียงพอ ต้องการ {$targetDeal->required_quantity} ชิ้น แต่มี {$effectiveQuantity} ชิ้น",
+                'error' => 'INSUFFICIENT_QUANTITY',
+                'required' => $targetDeal->required_quantity,
+                'current' => $effectiveQuantity
             ], 400);
         }
 
         try {
-            // บันทึกการแลกรางวัลลงฐานข้อมูล
+            // บันทึกการแลกรางวัลลงฐานข้อมูล (status = pending รอ admin approve)
             $claimedReward = \App\Models\UserClaimedReward::create([
                 'user_id' => $user->id,
                 'level' => $validated['level'],
                 'reward_type' => $validated['reward_type'],
+                'required_quantity' => $targetDeal->required_quantity,
+                'earned_free_items' => $targetDeal->free_quantity,
+                'unit_price' => $targetDeal->unit_price,
+                'savings_amount' => $targetDeal->savings_amount,
                 'status' => 'pending'
             ]);
 
@@ -348,15 +425,14 @@ class ProfileController extends Controller
                 'message' => 'ส่งคำขอแลกรางวัลแล้ว รอการอนุมัติจากแอดมิน',
                 'claimed_reward' => [
                     'id' => $claimedReward->id,
-                    'level' => $targetReward['level'],
-                    'display_name' => $targetReward['display_name'],
-                    'required_quantity' => $targetReward['required_quantity'],
-                    'earned_free_items' => $targetReward['earned_free_items'],
-                    'savings_amount' => $targetReward['savings_amount'],
+                    'level' => $targetDeal->level,
+                    'display_name' => $targetDeal->display_name,
+                    'required_quantity' => $targetDeal->required_quantity,
+                    'earned_free_items' => $targetDeal->free_quantity,
+                    'savings_amount' => $targetDeal->savings_amount,
                     'status' => 'pending',
                     'claimed_at' => $claimedReward->created_at->toISOString(),
-                ],
-                'remaining_rewards' => $this->getRemainingRewards($availableRewards, $validated['level'])
+                ]
             ]);
 
         } catch (\Exception $e) {
@@ -372,7 +448,7 @@ class ProfileController extends Controller
     {
         // คำนวณข้อมูลความคืบหน้าสมาชิก (คัดลอกจาก getMembershipProgress)
         $completedOrders = $user->orders()
-            ->whereIn('status', ['confirmed', 'processing', 'shipped', 'delivered'])
+            ->whereIn('status', ['pending_payment', 'payment_uploaded', 'paid', 'confirmed', 'processing', 'shipped', 'delivered'])
             ->with('orderItems')
             ->get();
 
@@ -400,11 +476,21 @@ class ProfileController extends Controller
                 $latestClaim = $claimedRewards->sortByDesc('created_at')->first();
 
                 // หา orders ที่เกิดขึ้นหลังจากแลกรางวัลล่าสุด
-                $ordersAfterClaim = $user->orders()
-                    ->whereIn('status', ['confirmed', 'processing', 'shipped', 'delivered'])
-                    ->where('created_at', '>', $latestClaim->created_at)
-                    ->with('orderItems')
-                    ->get();
+                // ถ้า claim มี order_id → ใช้ order_id, ถ้าไม่มี → ใช้ created_at
+                // ไม่นับ orders ที่เป็น free item
+                $ordersQuery = $user->orders()
+                    ->whereIn('status', ['pending_payment', 'payment_uploaded', 'paid', 'confirmed', 'processing', 'shipped', 'delivered'])
+                    ->where(function ($q) {
+                        $q->where('is_free_item_order', false)->orWhereNull('is_free_item_order');
+                    });
+
+                if ($latestClaim->order_id) {
+                    $ordersQuery->where('id', '>', $latestClaim->order_id);
+                } else {
+                    $ordersQuery->where('created_at', '>', $latestClaim->created_at);
+                }
+
+                $ordersAfterClaim = $ordersQuery->with('orderItems')->get();
 
                 $quantityAfterClaim = $ordersAfterClaim->sum(function ($order) {
                     return $order->orderItems->sum('quantity');

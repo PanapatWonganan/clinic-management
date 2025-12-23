@@ -12,6 +12,7 @@ use App\Http\Controllers\CustomerAddressController;
 use App\Http\Controllers\DeliveryPriceController;
 use App\Http\Controllers\MembershipPricingController;
 use App\Http\Controllers\PaymentController;
+use App\Http\Controllers\FreeItemRedemptionController;
 
 // Authentication routes
 Route::post('/auth/login', [AuthController::class, 'login']);
@@ -24,6 +25,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/profile', [ProfileController::class, 'update']);
     Route::get('/membership/progress', [ProfileController::class, 'getMembershipProgress']);
     Route::post('/membership/claim-reward', [ProfileController::class, 'claimReward']);
+
+    // Free item redemption routes
+    Route::get('/my-rewards', [FreeItemRedemptionController::class, 'myRewards']);
+    Route::get('/my-rewards/{id}', [FreeItemRedemptionController::class, 'showReward']);
+    Route::post('/redeem-free-items', [FreeItemRedemptionController::class, 'redeem']);
+    Route::get('/redemption-history', [FreeItemRedemptionController::class, 'redemptionHistory']);
+    Route::get('/redeemable-products', [FreeItemRedemptionController::class, 'availableProducts']);
 });
 
 // Patient routes

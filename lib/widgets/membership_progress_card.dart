@@ -6,11 +6,17 @@ import '../models/membership_level.dart';
 class MembershipProgressCard extends StatelessWidget {
   final List<MembershipLevel> levels;
   final String membershipType;
+  final double? previewQuantity; // จำนวนชิ้นในตะกร้า (preview)
+  final double? currentQuantity; // จำนวนชิ้นปัจจุบัน
+  final List<int>? requiredQuantities; // จำนวนชิ้นที่ต้องการแต่ละ level
 
   const MembershipProgressCard({
     super.key,
     required this.levels,
     required this.membershipType,
+    this.previewQuantity,
+    this.currentQuantity,
+    this.requiredQuantities,
   });
 
 
@@ -119,6 +125,118 @@ class MembershipProgressCard extends StatelessWidget {
     }
   }
 
+  // สร้าง progress section พร้อม preview
+  Widget _buildProgressSection({
+    required int levelIndex,
+    required double progress,
+    required bool isFirst,
+    required bool isLast,
+    required bool canProgress,
+  }) {
+    final previewProgress = _calculatePreviewProgress(levelIndex, progress);
+    // _calculatePreviewProgress already checks if previous levels would be filled
+    // so we don't need canProgress check here for preview
+    final hasPreview = previewProgress > 0;
+
+    return Container(
+      height: 8,
+      decoration: BoxDecoration(
+        color: progress >= 100 && canProgress
+            ? _getMembershipColor()
+            : AppColors.progressBackground,
+        borderRadius: BorderRadius.only(
+          topLeft: isFirst ? const Radius.circular(4) : Radius.zero,
+          bottomLeft: isFirst ? const Radius.circular(4) : Radius.zero,
+          topRight: isLast ? const Radius.circular(4) : Radius.zero,
+          bottomRight: isLast ? const Radius.circular(4) : Radius.zero,
+        ),
+      ),
+      // Show preview even if canProgress is false (preview handles its own validation)
+      child: (progress < 100 && canProgress) || hasPreview
+          ? Stack(
+              children: [
+                // Preview progress (สีจาง)
+                if (hasPreview)
+                  FractionallySizedBox(
+                    alignment: Alignment.centerLeft,
+                    widthFactor: ((progress + previewProgress) / 100).clamp(0, 1),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: _getMembershipColor().withValues(alpha: 0.6),
+                        borderRadius: BorderRadius.only(
+                          topLeft: isFirst ? const Radius.circular(4) : Radius.zero,
+                          bottomLeft: isFirst ? const Radius.circular(4) : Radius.zero,
+                          topRight: isLast && progress + previewProgress >= 100
+                              ? const Radius.circular(4) : Radius.zero,
+                          bottomRight: isLast && progress + previewProgress >= 100
+                              ? const Radius.circular(4) : Radius.zero,
+                        ),
+                      ),
+                    ),
+                  ),
+                // Current progress (สีเข้ม)
+                if (progress > 0)
+                  FractionallySizedBox(
+                    alignment: Alignment.centerLeft,
+                    widthFactor: (progress / 100).clamp(0, 1),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: _getMembershipColor(),
+                        borderRadius: BorderRadius.only(
+                          topLeft: isFirst ? const Radius.circular(4) : Radius.zero,
+                          bottomLeft: isFirst ? const Radius.circular(4) : Radius.zero,
+                          topRight: isLast && progress >= 100
+                              ? const Radius.circular(4) : Radius.zero,
+                          bottomRight: isLast && progress >= 100
+                              ? const Radius.circular(4) : Radius.zero,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            )
+          : null,
+    );
+  }
+
+  // คำนวณ preview progress สำหรับแต่ละ level (ใช้จำนวนชิ้น + รองรับข้าม level)
+  double _calculatePreviewProgress(int levelIndex, double currentProgress) {
+    if (previewQuantity == null || previewQuantity == 0) {
+      return 0;
+    }
+
+    if (currentQuantity == null || requiredQuantities == null ||
+        levelIndex >= requiredQuantities!.length) {
+      return 0;
+    }
+
+    // ถ้า current progress เต็ม 100% แล้ว ไม่ต้องแสดง preview
+    if (currentProgress >= 100) return 0;
+
+    final requiredQty = requiredQuantities![levelIndex];
+    final totalQty = currentQuantity! + previewQuantity!;
+
+    // Check ว่า level ก่อนหน้าทั้งหมดเต็มหรือยัง (รวม preview)
+    // ถ้า totalQty ไม่พอจะเต็ม level ก่อนหน้า → ไม่แสดง preview สำหรับ level นี้
+    for (int i = 0; i < levelIndex; i++) {
+      final prevRequiredQty = requiredQuantities![i];
+      if (totalQty < prevRequiredQty) {
+        return 0;
+      }
+    }
+
+    // คำนวณ preview progress % สำหรับ level นี้
+    final previewProgressPercent = (totalQty / requiredQty * 100).clamp(0, 100);
+
+    // ส่งคืนเฉพาะส่วนที่เกิน current progress
+    final additionalProgress = (previewProgressPercent - currentProgress).clamp(0.0, 100.0 - currentProgress);
+
+    // Debug log
+    debugPrint('Level $levelIndex: totalQty=$totalQty, required=$requiredQty, preview%=${previewProgressPercent.toStringAsFixed(1)}, additional=${additionalProgress.toStringAsFixed(1)}');
+
+    return additionalProgress.toDouble();
+  }
+
   Widget _buildHorizontal3Levels() {
     final displayLevels = levels.take(3).toList();
 
@@ -138,7 +256,7 @@ class MembershipProgressCard extends StatelessWidget {
         ),
         const SizedBox(height: 8),
 
-        // Progress bar - 3 separate sections
+        // Progress bar - 3 separate sections with preview
         Container(
           height: 8,
           decoration: BoxDecoration(
@@ -150,82 +268,34 @@ class MembershipProgressCard extends StatelessWidget {
               // Level 1 section
               Expanded(
                 flex: 1,
-                child: Container(
-                  height: 8,
-                  decoration: BoxDecoration(
-                    color: displayLevels.isNotEmpty && displayLevels[0].progress >= 100
-                        ? AppColors.mainPink
-                        : AppColors.progressBackground,
-                    borderRadius: const BorderRadius.only(
-                      topLeft: Radius.circular(4),
-                      bottomLeft: Radius.circular(4),
-                    ),
-                  ),
-                  child: displayLevels.isNotEmpty && displayLevels[0].progress < 100
-                      ? FractionallySizedBox(
-                          alignment: Alignment.centerLeft,
-                          widthFactor: displayLevels[0].progress / 100,
-                          child: Container(
-                            decoration: const BoxDecoration(
-                              color: AppColors.mainPink,
-                              borderRadius: BorderRadius.only(
-                                topLeft: Radius.circular(4),
-                                bottomLeft: Radius.circular(4),
-                              ),
-                            ),
-                          ),
-                        )
-                      : null,
+                child: _buildProgressSection(
+                  levelIndex: 0,
+                  progress: displayLevels.isNotEmpty ? displayLevels[0].progress : 0,
+                  isFirst: true,
+                  isLast: false,
+                  canProgress: true,
                 ),
               ),
               // Level 2 section
               Expanded(
                 flex: 1,
-                child: Container(
-                  height: 8,
-                  color: displayLevels.length > 1 && displayLevels[1].progress >= 100 && displayLevels[0].progress >= 100
-                      ? AppColors.mainPink
-                      : AppColors.progressBackground,
-                  child: displayLevels.length > 1 && displayLevels[1].progress > 0 && displayLevels[0].progress >= 100
-                      ? FractionallySizedBox(
-                          alignment: Alignment.centerLeft,
-                          widthFactor: displayLevels[1].progress >= 100 ? 1.0 : displayLevels[1].progress / 100,
-                          child: Container(
-                            color: AppColors.mainPink,
-                          ),
-                        )
-                      : null,
+                child: _buildProgressSection(
+                  levelIndex: 1,
+                  progress: displayLevels.length > 1 ? displayLevels[1].progress : 0,
+                  isFirst: false,
+                  isLast: false,
+                  canProgress: displayLevels.isNotEmpty && displayLevels[0].progress >= 100,
                 ),
               ),
               // Level 3 section
               Expanded(
                 flex: 1,
-                child: Container(
-                  height: 8,
-                  decoration: BoxDecoration(
-                    color: displayLevels.length > 2 && displayLevels[2].progress >= 100
-                        ? AppColors.mainPink
-                        : AppColors.progressBackground,
-                    borderRadius: const BorderRadius.only(
-                      topRight: Radius.circular(4),
-                      bottomRight: Radius.circular(4),
-                    ),
-                  ),
-                  child: displayLevels.length > 2 && displayLevels[2].progress > 0 && displayLevels[0].progress >= 100 && displayLevels[1].progress >= 100
-                      ? FractionallySizedBox(
-                          alignment: Alignment.centerLeft,
-                          widthFactor: displayLevels[2].progress >= 100 ? 1.0 : displayLevels[2].progress / 100,
-                          child: Container(
-                            decoration: const BoxDecoration(
-                              color: AppColors.mainPink,
-                              borderRadius: BorderRadius.only(
-                                topRight: Radius.circular(4),
-                                bottomRight: Radius.circular(4),
-                              ),
-                            ),
-                          ),
-                        )
-                      : null,
+                child: _buildProgressSection(
+                  levelIndex: 2,
+                  progress: displayLevels.length > 2 ? displayLevels[2].progress : 0,
+                  isFirst: false,
+                  isLast: true,
+                  canProgress: displayLevels.length > 1 && displayLevels[0].progress >= 100 && displayLevels[1].progress >= 100,
                 ),
               ),
             ],
@@ -237,7 +307,6 @@ class MembershipProgressCard extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: displayLevels.asMap().entries.map((entry) {
-            int index = entry.key;
             MembershipLevel level = entry.value;
             bool isActive = level.progress >= 100;
 
@@ -308,7 +377,7 @@ class MembershipProgressCard extends StatelessWidget {
         ),
         const SizedBox(height: 8),
 
-        // Progress bar - แบบเดิมแต่ scrollable
+        // Progress bar - แบบเดิมแต่ scrollable พร้อม preview
         SizedBox(
           height: 8,
           child: SingleChildScrollView(
@@ -336,36 +405,14 @@ class MembershipProgressCard extends StatelessWidget {
                   return Expanded(
                     flex: 1,
                     child: Container(
-                      height: 8,
                       margin: EdgeInsets.only(right: isLast ? 0 : 8),
-                      decoration: BoxDecoration(
-                        color: level.progress >= 100 && canProgress
-                            ? _getMembershipColor()
-                            : AppColors.progressBackground,
-                        borderRadius: BorderRadius.only(
-                          topLeft: isFirst ? const Radius.circular(4) : Radius.zero,
-                          bottomLeft: isFirst ? const Radius.circular(4) : Radius.zero,
-                          topRight: isLast ? const Radius.circular(4) : Radius.zero,
-                          bottomRight: isLast ? const Radius.circular(4) : Radius.zero,
-                        ),
+                      child: _buildProgressSection(
+                        levelIndex: index,
+                        progress: level.progress,
+                        isFirst: isFirst,
+                        isLast: isLast,
+                        canProgress: canProgress,
                       ),
-                      child: level.progress < 100 && level.progress > 0 && canProgress
-                          ? FractionallySizedBox(
-                              alignment: Alignment.centerLeft,
-                              widthFactor: level.progress / 100,
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  color: _getMembershipColor(),
-                                  borderRadius: BorderRadius.only(
-                                    topLeft: isFirst ? const Radius.circular(4) : Radius.zero,
-                                    bottomLeft: isFirst ? const Radius.circular(4) : Radius.zero,
-                                    topRight: isLast ? const Radius.circular(4) : Radius.zero,
-                                    bottomRight: isLast ? const Radius.circular(4) : Radius.zero,
-                                  ),
-                                ),
-                              ),
-                            )
-                          : null,
                     ),
                   );
                 }).toList(),

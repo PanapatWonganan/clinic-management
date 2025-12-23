@@ -37,6 +37,15 @@ class DeliveryOption {
     }
   }
 
+  String get companyCode {
+    switch (company) {
+      case DeliveryCompany.grab:
+        return 'grab';
+      case DeliveryCompany.lalamove:
+        return 'lalamove';
+    }
+  }
+
   String get fullDisplayName {
     return '$companyName - $vehicleTypeName';
   }

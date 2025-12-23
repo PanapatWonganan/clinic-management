@@ -25,6 +25,7 @@ class Order extends Model
         'payment_slip_status',
         'tracking_number',
         'notes',
+        'is_free_item_order',
     ];
 
     protected $casts = [

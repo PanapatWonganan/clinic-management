@@ -11,6 +11,7 @@ import 'change_password_screen.dart';
 import 'tax_address_screen.dart';
 import 'order_history_screen.dart';
 import 'login_screen.dart';
+import 'my_free_items_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -67,6 +68,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
       'icon': Icons.receipt_long_outlined,
       'title': 'เพิ่มที่อยู่สำหรับออกใบกำกับภาษี',
       'onTap': 'tax_address',
+    },
+    {
+      'icon': Icons.card_giftcard_outlined,
+      'title': 'ของแถมของฉัน',
+      'onTap': 'free_items',
     },
     {
       'icon': Icons.history_outlined,
@@ -127,6 +133,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
         Navigator.push(
           context,
           MaterialPageRoute(builder: (context) => const OrderHistoryScreen()),
+        );
+        break;
+      case 'free_items':
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const MyFreeItemsScreen()),
         );
         break;
       case 'logout':

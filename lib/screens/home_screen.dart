@@ -26,7 +26,7 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   int _selectedIndex = 0;
   UserProfile userProfile = UserProfile();
   bool isLoadingProfile = true;
@@ -40,11 +40,27 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadUserProfile();
     _loadMembershipProgress().then((_) {
       // Load products after membership data is loaded
       _loadProducts();
     });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Reload membership data เมื่อ app กลับมาจาก background
+    if (state == AppLifecycleState.resumed) {
+      debugPrint('App resumed - reloading membership data');
+      _loadMembershipProgress();
+    }
   }
 
   String _getMembershipLogoPath(String? membershipType) {
@@ -178,7 +194,10 @@ class _HomeScreenState extends State<HomeScreen> {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => CheckoutScreen(cartItems: cartItems),
+              builder: (context) => CheckoutScreen(
+                cartItems: cartItems,
+                onOrderCreated: _clearCart,
+              ),
             ),
           ).then((_) async {
             // Reset selected index เมื่อกลับมาจากหน้า Checkout
@@ -258,6 +277,26 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
+  void _setQuantity(int categoryId, int quantity) {
+    setState(() {
+      final index = productCategories.indexWhere((cat) => cat.id == categoryId);
+      if (index != -1) {
+        productCategories[index].quantity = quantity < 0 ? 0 : quantity;
+      }
+    });
+  }
+
+  // Clear cart after successful order
+  void _clearCart() {
+    setState(() {
+      for (var category in productCategories) {
+        category.quantity = 0;
+      }
+    });
+    // Reload membership data to reflect new order
+    _loadMembershipProgress();
+  }
+
   double _calculateTotalPrice() {
     return productCategories.fold(0.0, (total, category) {
       return total + (category.quantity * category.price);
@@ -268,6 +307,38 @@ class _HomeScreenState extends State<HomeScreen> {
     return productCategories.fold(0, (total, category) {
       return total + category.quantity;
     });
+  }
+
+  // ดึง effective_quantity จาก membership data (ยอดสะสมทั้งหมดหลังแลกรางวัลครั้งล่าสุด)
+  double _getCurrentQuantityFromMembership() {
+    if (membershipProgressData == null) return 0;
+
+    // ใช้ effective_quantity จาก root level ของ API response
+    // effective_quantity = ยอดรวมจาก orders หลังการแลกรางวัลครั้งล่าสุด
+    final effectiveQty = membershipProgressData!['effective_quantity'];
+    if (effectiveQty != null) {
+      // Handle both num and String types
+      if (effectiveQty is num) {
+        return effectiveQty.toDouble();
+      }
+      return double.tryParse(effectiveQty.toString()) ?? 0;
+    }
+    return 0;
+  }
+
+  // ดึง required_quantity ของแต่ละ level
+  List<int> _getRequiredQuantitiesFromMembership() {
+    if (membershipProgressData == null) return [];
+    final levelProgress = membershipProgressData!['level_progress'] as List?;
+    if (levelProgress == null) return [];
+    return levelProgress.map((level) {
+      final val = level['required_quantity'] ?? 0;
+      // Handle both num and String types
+      if (val is num) {
+        return val.toInt();
+      }
+      return int.tryParse(val.toString()) ?? 0;
+    }).toList();
   }
 
   List<CheckoutItem> _getCartItems() {
@@ -406,6 +477,41 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+
+  // นำ reward ไปใช้เป็นส่วนลดในตะกร้า (ไม่ต้อง approve จาก API)
+  void _onApplyRewardToCart(Map<String, dynamic> reward) {
+    debugPrint('Applying reward to cart: $reward');
+
+    final cartItems = _getCartItems();
+
+    if (cartItems.isEmpty) {
+      // ถ้าไม่มีสินค้าในตะกร้า แสดงข้อความแจ้งเตือน
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('กรุณาเลือกสินค้าก่อนใช้สิทธิ์ส่วนลด'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    // Navigate ไป checkout พร้อม reward
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => CheckoutScreen(
+          cartItems: cartItems,
+          appliedReward: reward,
+          membershipData: membershipProgressData,
+          onOrderCreated: _clearCart,
+        ),
+      ),
+    ).then((_) async {
+      // Reload membership progress หลังจากสั่งซื้อสินค้า
+      await _loadMembershipProgress();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -440,6 +546,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 : MembershipProgressCard(
                     levels: membershipLevels,
                     membershipType: membershipProgressData?['membership_type'] ?? 'exMember',
+                    previewQuantity: _getTotalItems().toDouble(),
+                    currentQuantity: _getCurrentQuantityFromMembership(),
+                    requiredQuantities: _getRequiredQuantitiesFromMembership(),
                   ),
             const SizedBox(height: 24),
 
@@ -455,6 +564,11 @@ class _HomeScreenState extends State<HomeScreen> {
             RewardCard(
               availableReward: _getAvailableReward(),
               onClaim: _onClaimReward,
+              onApplyToCart: _onApplyRewardToCart,
+              onRewardClaimed: _loadMembershipProgress, // reload data หลังแลกรางวัล
+              cartQuantity: _getTotalItems(),
+              currentQuantity: _getCurrentQuantityFromMembership(),
+              levelProgress: membershipProgressData?['level_progress'],
             ),
             const SizedBox(height: 40),
 
@@ -581,6 +695,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             category: category,
                             onIncrease: () => _increaseQuantity(category.id),
                             onDecrease: () => _decreaseQuantity(category.id),
+                            onQuantityChanged: (qty) => _setQuantity(category.id, qty),
                           ))
                       .toList(),
                 ),
@@ -602,7 +717,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => CheckoutScreen(cartItems: cartItems),
+                    builder: (context) => CheckoutScreen(
+                      cartItems: cartItems,
+                      onOrderCreated: _clearCart,
+                    ),
                   ),
                 ).then((_) async {
                   // Reload membership progress หลังจากสั่งซื้อสินค้า

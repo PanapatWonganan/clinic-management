@@ -9,7 +9,12 @@ class UserClaimedReward extends Model
 {
     protected $fillable = [
         'user_id',
+        'order_id',
         'level',
+        'required_quantity',
+        'earned_free_items',
+        'unit_price',
+        'savings_amount',
         'reward_type',
         'status',
         'admin_notes',
@@ -29,5 +34,10 @@ class UserClaimedReward extends Model
     public function approver(): BelongsTo
     {
         return $this->belongsTo(User::class, 'approved_by');
+    }
+
+    public function order(): BelongsTo
+    {
+        return $this->belongsTo(Order::class);
     }
 }

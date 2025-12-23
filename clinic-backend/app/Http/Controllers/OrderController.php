@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Product;
+use App\Models\UserClaimedReward;
+use App\Models\FreeItemRedemption;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -53,7 +55,16 @@ class OrderController extends Controller
             'delivery_fee' => 'nullable|numeric|min:0',
             'discount' => 'nullable|numeric|min:0',
             'shipping_address_id' => 'nullable|exists:customer_addresses,id',
-            'notes' => 'nullable|string|max:500'
+            'notes' => 'nullable|string|max:500',
+            // Reward claim fields
+            'reward_level' => 'nullable|integer|min:1',
+            'reward_discount' => 'nullable|numeric|min:0',
+            'reward_free_items' => 'nullable|integer|min:0',
+            'reward_required_quantity' => 'nullable|integer|min:0',
+            // ของแถมที่เลือกเพิ่มใน order (จากสิทธิ์ที่มีอยู่)
+            'selected_free_items' => 'nullable|array',
+            'selected_free_items.*.product_id' => 'required_with:selected_free_items|exists:products,id',
+            'selected_free_items.*.quantity' => 'required_with:selected_free_items|integer|min:1',
         ]);
 
         if ($validator->fails()) {
@@ -161,6 +172,98 @@ class OrderController extends Controller
 
                 // NOTE: Stock will be reduced when order status changes to 'paid'
                 // This happens automatically via Order model's booted() method
+            }
+
+            // บันทึก reward claim ถ้ามีการแลกรางวัล
+            if ($request->reward_level) {
+                // คำนวณ total quantity ที่ซื้อ
+                $totalQuantity = collect($request->items)->sum('quantity');
+
+                UserClaimedReward::create([
+                    'user_id' => $user->id,
+                    'order_id' => $order->id,
+                    'level' => $request->reward_level,
+                    'required_quantity' => $request->reward_required_quantity ?? $totalQuantity,
+                    'earned_free_items' => $request->reward_free_items ?? 0,
+                    'unit_price' => 2500, // ราคาต่อชิ้นคงที่
+                    'savings_amount' => $request->reward_discount ?? 0,
+                    'reward_type' => 'bundle_deal', // ประเภทรางวัล
+                    'status' => 'approved', // อนุมัติทันทีเมื่อทำ order
+                ]);
+
+                \Log::info('Reward claimed for order', [
+                    'order_id' => $order->id,
+                    'user_id' => $user->id,
+                    'level' => $request->reward_level,
+                    'free_items' => $request->reward_free_items,
+                    'discount' => $request->reward_discount,
+                ]);
+            }
+
+            // ประมวลผลของแถมที่เลือกเพิ่มใน order (จากสิทธิ์ที่มีอยู่)
+            if ($request->selected_free_items && count($request->selected_free_items) > 0) {
+                $totalFreeItemsQuantity = collect($request->selected_free_items)->sum('quantity');
+
+                // ตรวจสอบว่ามีสิทธิ์เพียงพอ (FIFO)
+                $rewards = UserClaimedReward::where('user_id', $user->id)
+                    ->where('status', 'approved')
+                    ->whereRaw('earned_free_items > redeemed_free_items')
+                    ->orderBy('created_at', 'asc')
+                    ->get();
+
+                $totalRemaining = $rewards->sum(function ($r) {
+                    return $r->earned_free_items - $r->redeemed_free_items;
+                });
+
+                if ($totalFreeItemsQuantity > $totalRemaining) {
+                    throw new \Exception("สิทธิ์ของแถมไม่เพียงพอ (ต้องการ $totalFreeItemsQuantity, มี $totalRemaining)");
+                }
+
+                // สร้าง FreeItemRedemption records (FIFO)
+                foreach ($request->selected_free_items as $freeItem) {
+                    $product = Product::find($freeItem['product_id']);
+                    if (!$product) continue;
+
+                    // ตรวจสอบ stock
+                    if ($product->stock < $freeItem['quantity']) {
+                        throw new \Exception("สินค้าของแถม {$product->name} มี stock ไม่เพียงพอ");
+                    }
+
+                    // หัก stock ของแถม
+                    $product->decrement('stock', $freeItem['quantity']);
+
+                    // หักจาก rewards ตาม FIFO
+                    $itemQtyRemaining = $freeItem['quantity'];
+                    foreach ($rewards as $reward) {
+                        if ($itemQtyRemaining <= 0) break;
+
+                        $rewardRemaining = $reward->earned_free_items - $reward->redeemed_free_items;
+                        if ($rewardRemaining <= 0) continue;
+
+                        $qtyToDeduct = min($itemQtyRemaining, $rewardRemaining);
+
+                        FreeItemRedemption::create([
+                            'user_id' => $user->id,
+                            'claimed_reward_id' => $reward->id,
+                            'product_id' => $freeItem['product_id'],
+                            'quantity' => $qtyToDeduct,
+                            'status' => FreeItemRedemption::STATUS_APPROVED, // อนุมัติทันทีเพราะส่งพร้อม order
+                            'shipping_address_id' => $shippingAddressId,
+                            'notes' => "ส่งพร้อม Order #{$order->order_number}",
+                            'order_id' => $order->id, // เชื่อมกับ order
+                            'approved_at' => now(),
+                        ]);
+
+                        $reward->increment('redeemed_free_items', $qtyToDeduct);
+                        $itemQtyRemaining -= $qtyToDeduct;
+                    }
+                }
+
+                \Log::info('Free items added to order', [
+                    'order_id' => $order->id,
+                    'free_items' => $request->selected_free_items,
+                    'total_quantity' => $totalFreeItemsQuantity,
+                ]);
             }
 
             DB::commit();
