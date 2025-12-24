@@ -1,0 +1,107 @@
+# ========================================================
+# คำสั่งสำหรับ Deploy บน Production Server (UPDATED)
+# ปรับปรุงครั้งล่าสุด: Dec 3, 2025 - Fix Product Images & Payment Form
+# Copy คำสั่งทั้งหมดและ paste ลงใน SSH terminal
+# ========================================================
+
+# IMPORTANT: This deployment includes:
+# 1. Product images upload to storage
+# 2. Payment form with credit card inputs
+# 3. Membership logos and progress bar icons
+# 4. Complete cache clearing
+
+# Step 1: SSH เข้า server (รันบนเครื่อง Mac ของคุณ)
+ssh root@45.32.102.242
+
+# ========================================================
+# Step 2: รันคำสั่งเหล่านี้บน SERVER (หลังจาก SSH แล้ว)
+# ========================================================
+
+# Navigate to deployment directory
+cd ~/deployment
+
+# Pull latest code from GitHub (includes frontend-build.tar.gz + product-images.tar.gz)
+git pull origin main
+
+# Extract product images to storage
+echo ""
+echo "[Step 2.1] Extracting product images to storage..."
+mkdir -p clinic-backend/storage/app/public/products
+tar -xzf product-images.tar.gz -C clinic-backend/storage/app/public/products/
+echo "✅ Product images extracted"
+
+# Recreate storage symlink
+echo ""
+echo "[Step 2.2] Recreating storage symlink..."
+cd clinic-backend
+rm -f public/storage
+php artisan storage:link
+echo "✅ Storage symlink created"
+
+# Verify product images
+echo ""
+echo "[Step 2.3] Verifying product images..."
+ls -lh storage/app/public/products/ | grep -E "product[1-4]\.png"
+
+# Clear all Laravel caches
+echo ""
+echo "[Step 2.4] Clearing Laravel caches..."
+rm -rf storage/framework/views/*
+php artisan view:clear
+php artisan cache:clear
+php artisan config:clear
+echo "✅ Laravel caches cleared"
+
+# Deploy frontend
+echo ""
+echo "[Step 2.5] Deploying frontend..."
+cd ~/deployment
+
+# Create backup directory if not exists
+mkdir -p /var/www/backups
+
+# Backup current frontend
+BACKUP_NAME="exquillermember.com.backup-$(date +%Y%m%d-%H%M%S)"
+cp -r /var/www/exquillermember.com "/var/www/backups/$BACKUP_NAME"
+echo "✅ Backup saved: /var/www/backups/$BACKUP_NAME"
+
+# Clear current deployment
+rm -rf /var/www/exquillermember.com/*
+
+# Extract new build
+tar -xzf frontend-build.tar.gz -C /var/www/exquillermember.com/
+
+# Set correct permissions
+chown -R www-data:www-data /var/www/exquillermember.com
+chmod -R 755 /var/www/exquillermember.com
+
+# Restart Nginx
+echo ""
+echo "[Step 2.6] Restarting Nginx..."
+systemctl restart nginx
+
+echo ""
+echo "✅ ========================================="
+echo "✅ Deployment completed successfully!"
+echo "✅ ========================================="
+echo ""
+echo "📋 FIXES APPLIED:"
+echo "  1. ✅ Product images uploaded to storage"
+echo "  2. ✅ Payment form with credit card inputs"
+echo "  3. ✅ Membership logos & progress bar icons"
+echo "  4. ✅ All caches cleared"
+echo ""
+echo "🌐 Test at: https://exquillermember.com"
+echo "💡 Don't forget to hard refresh browser: Cmd+Shift+R or use Incognito"
+echo ""
+
+# ========================================================
+# Step 3: Verify deployment (optional)
+# ========================================================
+
+# Check if images exist
+ls -la /var/www/exquillermember.com/assets/assets/images/ | grep -E "purple|green|pink|exmember"
+
+# Should see:
+# purple.png, green.png, pink.png
+# exmember-pink-1.png, exvip-pink-1.png, exsupervip-gold-1.png, exdoctor-green-1.png
