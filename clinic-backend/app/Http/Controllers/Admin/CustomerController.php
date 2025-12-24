@@ -5,6 +5,9 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\CustomerAddress;
+use App\Models\UserClaimedReward;
+use App\Models\FreeItemRedemption;
+use App\Services\MembershipProgressService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
@@ -35,11 +38,31 @@ class CustomerController extends Controller
         // For web requests, return view
         // Eager load addresses to avoid N+1 query problem
         $customers = User::with('addresses')->orderBy('created_at', 'desc')->paginate(15);
-        
-        // Add membership info to each customer
-        $customers->getCollection()->each(function ($customer) {
+
+        // Add membership info and progress to each customer
+        $membershipProgressService = new MembershipProgressService();
+        $customers->getCollection()->each(function ($customer) use ($membershipProgressService) {
             $customer->membership_info = $customer->getMembershipInfo();
             $customer->membership_status = $customer->getMembershipStatus();
+
+            // Get membership progress data
+            $progress = $membershipProgressService->getMembershipProgress($customer);
+            $customer->total_purchased_quantity = $progress['total_purchased_quantity'];
+            $customer->current_points = $progress['current_points'];
+            $customer->total_spent = $progress['total_spent'];
+            $customer->pending_rewards = UserClaimedReward::where('user_id', $customer->id)
+                ->where('status', 'pending')->count();
+            $customer->total_claimed_rewards = UserClaimedReward::where('user_id', $customer->id)
+                ->where('status', 'approved')->count();
+
+            // Calculate remaining free items
+            $totalEarned = UserClaimedReward::where('user_id', $customer->id)
+                ->where('status', 'approved')
+                ->sum('earned_free_items');
+            $totalRedeemed = FreeItemRedemption::where('user_id', $customer->id)
+                ->whereNotIn('status', ['cancelled'])
+                ->sum('quantity');
+            $customer->remaining_free_items = $totalEarned - $totalRedeemed;
         });
 
         $stats = [
@@ -385,6 +408,46 @@ class CustomerController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'เกิดข้อผิดพลาดในการอัพเดต membership: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get customer detail with membership progress, rewards and redemptions
+     */
+    public function getCustomerDetail(string $id)
+    {
+        try {
+            $customer = User::findOrFail($id);
+            $customer->membership_info = $customer->getMembershipInfo();
+            $customer->membership_status = $customer->getMembershipStatus();
+
+            // Get membership progress
+            $membershipProgressService = new MembershipProgressService();
+            $membershipProgress = $membershipProgressService->getMembershipProgress($customer);
+
+            // Get claimed rewards
+            $claimedRewards = UserClaimedReward::where('user_id', $id)
+                ->orderBy('created_at', 'desc')
+                ->get();
+
+            // Get free item redemptions
+            $redemptions = FreeItemRedemption::where('user_id', $id)
+                ->with('product')
+                ->orderBy('created_at', 'desc')
+                ->get();
+
+            return response()->json([
+                'success' => true,
+                'customer' => $customer,
+                'membership_progress' => $membershipProgress,
+                'claimed_rewards' => $claimedRewards,
+                'redemptions' => $redemptions
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'เกิดข้อผิดพลาดในการดึงข้อมูลลูกค้า: ' . $e->getMessage()
             ], 500);
         }
     }

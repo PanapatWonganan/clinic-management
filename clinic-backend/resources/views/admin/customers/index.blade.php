@@ -544,6 +544,8 @@
                             <th>อีเมล</th>
                             <th>เบอร์โทร</th>
                             <th>สมาชิกภาพ</th>
+                            <th>ซื้อสะสม</th>
+                            <th>ของแถม</th>
                             <th>วันที่สมัคร</th>
                             <th>จัดการ</th>
                         </tr>
@@ -589,9 +591,24 @@
                                     <div style="font-size: 0.75rem; color: var(--danger); margin-top: 0.25rem;">หมดอายุ</div>
                                 @endif
                             </td>
+                            <td>
+                                <div style="font-weight: 600; color: var(--primary);">{{ number_format($customer->total_purchased_quantity ?? 0) }} ชิ้น</div>
+                                <div style="font-size: 0.75rem; color: var(--text-secondary);">฿{{ number_format($customer->total_spent ?? 0) }}</div>
+                            </td>
+                            <td>
+                                @if(($customer->remaining_free_items ?? 0) > 0)
+                                    <div style="font-weight: 600; color: var(--accent);">{{ number_format($customer->remaining_free_items) }} ชิ้น</div>
+                                    <div style="font-size: 0.7rem; color: var(--text-secondary);">คงเหลือ</div>
+                                @else
+                                    <span style="color: var(--text-secondary); font-size: 0.75rem;">0</span>
+                                @endif
+                            </td>
                             <td>{{ $customer->created_at->format('d/m/Y') }}</td>
                             <td>
                                 <div class="action-buttons">
+                                    <button class="btn-action view" onclick="viewCustomerDetail({{ $customer->id }})" title="ดูรายละเอียด" style="background: #d1fae5; color: #065f46;">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
                                     <button class="btn-action edit" onclick="editCustomer({{ $customer->id }})" title="แก้ไข">
                                         <i class="fas fa-edit"></i>
                                     </button>
@@ -606,7 +623,7 @@
                         </tr>
                         @empty
                         <tr>
-                            <td colspan="6" style="text-align: center; padding: 3rem; color: var(--text-secondary);">
+                            <td colspan="8" style="text-align: center; padding: 3rem; color: var(--text-secondary);">
                                 <i class="fas fa-users" style="font-size: 3rem; margin-bottom: 1rem; opacity: 0.3;"></i>
                                 <div>ยังไม่มีลูกค้าในระบบ</div>
                             </td>
@@ -736,6 +753,22 @@
         </div>
     </div>
 
+    <!-- Customer Detail Modal -->
+    <div id="customerDetailModal" class="modal">
+        <div class="modal-content" style="max-width: 900px;">
+            <div class="modal-header">
+                <h3 id="customerDetailTitle">รายละเอียดลูกค้า</h3>
+                <span class="close" onclick="closeCustomerDetailModal()">&times;</span>
+            </div>
+            <div class="modal-body" id="customerDetailBody">
+                <!-- Customer detail content will be loaded here -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeCustomerDetailModal()">ปิด</button>
+            </div>
+        </div>
+    </div>
+
     <script src="{{ asset('js/admin-customers.js') }}"></script>
     <script>
         // Show customer addresses modal
@@ -813,9 +846,196 @@
         // Close modal when clicking outside
         window.onclick = function(event) {
             const addressModal = document.getElementById('addressModal');
+            const customerDetailModal = document.getElementById('customerDetailModal');
             if (event.target == addressModal) {
                 addressModal.style.display = 'none';
             }
+            if (event.target == customerDetailModal) {
+                customerDetailModal.style.display = 'none';
+            }
+        }
+
+        // View customer detail
+        function viewCustomerDetail(customerId) {
+            const modal = document.getElementById('customerDetailModal');
+            const modalBody = document.getElementById('customerDetailBody');
+            const modalTitle = document.getElementById('customerDetailTitle');
+
+            modal.style.display = 'block';
+            modalBody.innerHTML = '<div style="text-align: center; padding: 2rem;"><i class="fas fa-spinner fa-spin"></i> กำลังโหลด...</div>';
+
+            fetch(`/admin/customers/${customerId}/detail`, {
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                    'Accept': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const customer = data.customer;
+                    const progress = data.membership_progress;
+                    const rewards = data.claimed_rewards;
+                    const redemptions = data.redemptions;
+
+                    let html = `
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+                            <!-- Customer Info -->
+                            <div style="background: var(--background); border-radius: 0.75rem; padding: 1.5rem;">
+                                <h4 style="margin-bottom: 1rem; color: var(--text-primary);"><i class="fas fa-user"></i> ข้อมูลลูกค้า</h4>
+                                <div style="font-size: 0.875rem; line-height: 2;">
+                                    <div><strong>ชื่อ:</strong> ${customer.name}</div>
+                                    <div><strong>อีเมล:</strong> ${customer.email}</div>
+                                    <div><strong>โทร:</strong> ${customer.phone || '-'}</div>
+                                    <div><strong>สมาชิกภาพ:</strong> ${customer.membership_info?.name || 'สมาชิกทั่วไป'}</div>
+                                </div>
+                            </div>
+
+                            <!-- Progress Stats -->
+                            <div style="background: var(--background); border-radius: 0.75rem; padding: 1.5rem;">
+                                <h4 style="margin-bottom: 1rem; color: var(--text-primary);"><i class="fas fa-chart-line"></i> สถิติการซื้อ</h4>
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                                    <div style="text-align: center; background: white; padding: 1rem; border-radius: 0.5rem;">
+                                        <div style="font-size: 1.5rem; font-weight: 700; color: var(--primary);">${progress.total_purchased_quantity.toLocaleString()}</div>
+                                        <div style="font-size: 0.75rem; color: var(--text-secondary);">ชิ้นที่ซื้อ</div>
+                                    </div>
+                                    <div style="text-align: center; background: white; padding: 1rem; border-radius: 0.5rem;">
+                                        <div style="font-size: 1.5rem; font-weight: 700; color: var(--warning);">${progress.current_points.toLocaleString()}</div>
+                                        <div style="font-size: 0.75rem; color: var(--text-secondary);">คะแนนสะสม</div>
+                                    </div>
+                                    <div style="text-align: center; background: white; padding: 1rem; border-radius: 0.5rem;">
+                                        <div style="font-size: 1.5rem; font-weight: 700; color: var(--accent);">฿${progress.total_spent.toLocaleString()}</div>
+                                        <div style="font-size: 0.75rem; color: var(--text-secondary);">ยอดซื้อรวม</div>
+                                    </div>
+                                    <div style="text-align: center; background: white; padding: 1rem; border-radius: 0.5rem;">
+                                        <div style="font-size: 1.5rem; font-weight: 700; color: var(--danger);">${progress.effective_quantity}</div>
+                                        <div style="font-size: 0.75rem; color: var(--text-secondary);">นับหลัง claim</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Level Progress -->
+                        <div style="margin-top: 1.5rem; background: var(--background); border-radius: 0.75rem; padding: 1.5rem;">
+                            <h4 style="margin-bottom: 1rem; color: var(--text-primary);"><i class="fas fa-level-up-alt"></i> ความคืบหน้าระดับ</h4>
+                            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1rem;">
+                    `;
+
+                    if (progress.level_progress && progress.level_progress.length > 0) {
+                        progress.level_progress.forEach(level => {
+                            const progressColor = level.is_completed ? 'var(--accent)' : 'var(--primary)';
+                            html += `
+                                <div style="background: white; border-radius: 0.5rem; padding: 1rem; border: 1px solid ${level.is_completed ? 'var(--accent)' : 'var(--border)'};">
+                                    <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                                        <span style="font-weight: 600;">${level.display_name || 'Level ' + level.level}</span>
+                                        ${level.is_completed ? '<span style="color: var(--accent);"><i class="fas fa-check-circle"></i></span>' : ''}
+                                    </div>
+                                    <div style="background: #e5e7eb; border-radius: 9999px; height: 8px; margin-bottom: 0.5rem;">
+                                        <div style="background: ${progressColor}; border-radius: 9999px; height: 100%; width: ${Math.min(level.progress_percentage, 100)}%;"></div>
+                                    </div>
+                                    <div style="font-size: 0.75rem; color: var(--text-secondary);">
+                                        ${level.current_quantity}/${level.required_quantity} ชิ้น (${level.progress_percentage.toFixed(1)}%)
+                                    </div>
+                                    <div style="font-size: 0.75rem; color: var(--accent); margin-top: 0.25rem;">
+                                        ได้ของแถม: ${level.free_quantity} ชิ้น
+                                    </div>
+                                </div>
+                            `;
+                        });
+                    } else {
+                        html += '<div style="color: var(--text-secondary); text-align: center;">ไม่มีข้อมูล level</div>';
+                    }
+
+                    html += `
+                            </div>
+                        </div>
+
+                        <!-- Claimed Rewards -->
+                        <div style="margin-top: 1.5rem; background: var(--background); border-radius: 0.75rem; padding: 1.5rem;">
+                            <h4 style="margin-bottom: 1rem; color: var(--text-primary);"><i class="fas fa-gift"></i> ประวัติรับของแถม (${rewards.length} รายการ)</h4>
+                    `;
+
+                    if (rewards.length > 0) {
+                        html += '<div style="overflow-x: auto;"><table style="width: 100%; font-size: 0.875rem; border-collapse: collapse;">';
+                        html += '<thead><tr style="background: white;"><th style="padding: 0.75rem; text-align: left; border-bottom: 1px solid var(--border);">Level</th><th style="padding: 0.75rem; text-align: left; border-bottom: 1px solid var(--border);">ซื้อ</th><th style="padding: 0.75rem; text-align: left; border-bottom: 1px solid var(--border);">ได้ฟรี</th><th style="padding: 0.75rem; text-align: left; border-bottom: 1px solid var(--border);">สถานะ</th><th style="padding: 0.75rem; text-align: left; border-bottom: 1px solid var(--border);">วันที่</th></tr></thead>';
+                        html += '<tbody>';
+                        rewards.forEach(reward => {
+                            const statusColor = reward.status === 'approved' ? 'var(--accent)' : (reward.status === 'pending' ? 'var(--warning)' : 'var(--text-secondary)');
+                            const statusText = reward.status === 'approved' ? 'อนุมัติ' : (reward.status === 'pending' ? 'รอดำเนินการ' : reward.status);
+                            html += `
+                                <tr style="background: white;">
+                                    <td style="padding: 0.75rem; border-bottom: 1px solid var(--border);">Level ${reward.level}</td>
+                                    <td style="padding: 0.75rem; border-bottom: 1px solid var(--border);">${reward.required_quantity} ชิ้น</td>
+                                    <td style="padding: 0.75rem; border-bottom: 1px solid var(--border); color: var(--accent);">${reward.earned_free_items} ชิ้น</td>
+                                    <td style="padding: 0.75rem; border-bottom: 1px solid var(--border);"><span style="color: ${statusColor};">${statusText}</span></td>
+                                    <td style="padding: 0.75rem; border-bottom: 1px solid var(--border);">${new Date(reward.created_at).toLocaleDateString('th-TH')}</td>
+                                </tr>
+                            `;
+                        });
+                        html += '</tbody></table></div>';
+                    } else {
+                        html += '<div style="color: var(--text-secondary); text-align: center; padding: 1rem;">ยังไม่มีประวัติรับของแถม</div>';
+                    }
+
+                    html += `
+                        </div>
+
+                        <!-- Redemptions -->
+                        <div style="margin-top: 1.5rem; background: var(--background); border-radius: 0.75rem; padding: 1.5rem;">
+                            <h4 style="margin-bottom: 1rem; color: var(--text-primary);"><i class="fas fa-box"></i> การแลกของแถม (${redemptions.length} รายการ)</h4>
+                    `;
+
+                    if (redemptions.length > 0) {
+                        html += '<div style="overflow-x: auto;"><table style="width: 100%; font-size: 0.875rem; border-collapse: collapse;">';
+                        html += '<thead><tr style="background: white;"><th style="padding: 0.75rem; text-align: left; border-bottom: 1px solid var(--border);">สินค้า</th><th style="padding: 0.75rem; text-align: left; border-bottom: 1px solid var(--border);">จำนวน</th><th style="padding: 0.75rem; text-align: left; border-bottom: 1px solid var(--border);">สถานะ</th><th style="padding: 0.75rem; text-align: left; border-bottom: 1px solid var(--border);">วันที่</th></tr></thead>';
+                        html += '<tbody>';
+                        redemptions.forEach(redemption => {
+                            const statusColors = {
+                                'pending': 'var(--warning)',
+                                'approved': 'var(--primary)',
+                                'preparing': 'var(--primary)',
+                                'shipped': 'var(--accent)',
+                                'delivered': 'var(--accent)',
+                                'cancelled': 'var(--danger)'
+                            };
+                            const statusTexts = {
+                                'pending': 'รอดำเนินการ',
+                                'approved': 'อนุมัติแล้ว',
+                                'preparing': 'กำลังจัดเตรียม',
+                                'shipped': 'จัดส่งแล้ว',
+                                'delivered': 'ส่งถึงแล้ว',
+                                'cancelled': 'ยกเลิก'
+                            };
+                            html += `
+                                <tr style="background: white;">
+                                    <td style="padding: 0.75rem; border-bottom: 1px solid var(--border);">${redemption.product?.name || 'ไม่ระบุ'}</td>
+                                    <td style="padding: 0.75rem; border-bottom: 1px solid var(--border);">${redemption.quantity}</td>
+                                    <td style="padding: 0.75rem; border-bottom: 1px solid var(--border);"><span style="color: ${statusColors[redemption.status] || 'var(--text-secondary)'};">${statusTexts[redemption.status] || redemption.status}</span></td>
+                                    <td style="padding: 0.75rem; border-bottom: 1px solid var(--border);">${new Date(redemption.created_at).toLocaleDateString('th-TH')}</td>
+                                </tr>
+                            `;
+                        });
+                        html += '</tbody></table></div>';
+                    } else {
+                        html += '<div style="color: var(--text-secondary); text-align: center; padding: 1rem;">ยังไม่มีการแลกของแถม</div>';
+                    }
+
+                    html += '</div>';
+
+                    modalBody.innerHTML = html;
+                    modalTitle.innerHTML = `<i class="fas fa-user"></i> ${customer.name}`;
+                } else {
+                    modalBody.innerHTML = '<div style="color: var(--danger); text-align: center; padding: 2rem;">เกิดข้อผิดพลาดในการโหลดข้อมูล</div>';
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                modalBody.innerHTML = '<div style="color: var(--danger); text-align: center; padding: 2rem;">เกิดข้อผิดพลาดในการโหลดข้อมูล</div>';
+            });
+        }
+
+        function closeCustomerDetailModal() {
+            document.getElementById('customerDetailModal').style.display = 'none';
         }
     </script>
 </body>

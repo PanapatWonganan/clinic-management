@@ -77,10 +77,11 @@ Route::prefix('admin')->group(function () {
         Route::prefix('customers')->name('admin.customers.')->group(function () {
             Route::get('/', [AdminCustomerController::class, 'index'])->name('index');
             Route::post('/', [AdminCustomerController::class, 'store'])->name('store');
+            Route::get('/stats/data', [AdminCustomerController::class, 'stats'])->name('stats');
             Route::get('/{id}', [AdminCustomerController::class, 'show'])->name('show');
+            Route::get('/{id}/detail', [AdminCustomerController::class, 'getCustomerDetail'])->name('detail');
             Route::put('/{id}', [AdminCustomerController::class, 'update'])->name('update');
             Route::delete('/{id}', [AdminCustomerController::class, 'destroy'])->name('destroy');
-            Route::get('/stats/data', [AdminCustomerController::class, 'stats'])->name('stats');
             // Membership routes
             Route::get('/membership/types', [AdminCustomerController::class, 'getMembershipTypes'])->name('membership.types');
             Route::put('/{id}/membership', [AdminCustomerController::class, 'updateMembership'])->name('membership.update');
