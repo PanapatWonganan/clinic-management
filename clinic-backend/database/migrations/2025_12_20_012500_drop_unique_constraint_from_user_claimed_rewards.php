@@ -15,14 +15,14 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // Disable foreign key checks temporarily
-        DB::statement('SET FOREIGN_KEY_CHECKS=0');
+        // Step 1: Drop the foreign key constraint on user_id first (it uses the unique index)
+        DB::statement('ALTER TABLE user_claimed_rewards DROP FOREIGN KEY user_claimed_rewards_user_id_foreign');
 
-        // Use raw SQL to drop the unique index
+        // Step 2: Now we can drop the unique index
         DB::statement('ALTER TABLE user_claimed_rewards DROP INDEX user_claimed_rewards_user_id_level_reward_type_unique');
 
-        // Re-enable foreign key checks
-        DB::statement('SET FOREIGN_KEY_CHECKS=1');
+        // Step 3: Re-add the foreign key constraint (it will create its own index)
+        DB::statement('ALTER TABLE user_claimed_rewards ADD CONSTRAINT user_claimed_rewards_user_id_foreign FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE');
     }
 
     /**
