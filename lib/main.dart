@@ -25,7 +25,7 @@ class ClinicApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Clinic Membership',
+      title: 'Exquiller Member',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         fontFamily: 'Prompt',

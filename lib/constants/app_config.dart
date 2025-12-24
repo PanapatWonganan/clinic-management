@@ -43,7 +43,7 @@ class AppConfig {
   }
 
   // App Information
-  static const String appName = 'Clinic Membership App';
+  static const String appName = 'Exquiller Member';
   static const String version = '1.0.0';
 
   // Storage Base URL for images and files
