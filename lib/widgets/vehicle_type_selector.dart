@@ -6,11 +6,13 @@ import '../models/delivery_option.dart';
 class VehicleTypeSelector extends StatelessWidget {
   final VehicleType? selectedVehicleType;
   final Function(VehicleType) onVehicleTypeChanged;
+  final int? itemQuantity; // จำนวนกล่องสำหรับคำนวณค่าส่งพัสดุ
 
   const VehicleTypeSelector({
     super.key,
     required this.selectedVehicleType,
     required this.onVehicleTypeChanged,
+    this.itemQuantity,
   });
 
   @override
@@ -47,7 +49,116 @@ class VehicleTypeSelector extends StatelessWidget {
           Icons.directions_car,
           AppColors.mainPurple,
         ),
+
+        const SizedBox(height: 12),
+
+        // Parcel option
+        _buildParcelCard(),
       ],
+    );
+  }
+
+  Widget _buildParcelCard() {
+    final bool isSelected = selectedVehicleType == VehicleType.parcel;
+    final parcelPrice = DeliveryOption.calculateParcelPrice(itemQuantity ?? 1);
+
+    return GestureDetector(
+      onTap: () => onVehicleTypeChanged(VehicleType.parcel),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isSelected ? Colors.orange : AppColors.lightGray.withValues(alpha:0.3),
+            width: isSelected ? 2 : 1,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withValues(alpha:0.1),
+              spreadRadius: 1,
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            // Radio button
+            Container(
+              width: 20,
+              height: 20,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: isSelected ? Colors.orange : AppColors.lightGray,
+                  width: 2,
+                ),
+                color: isSelected ? Colors.orange : Colors.transparent,
+              ),
+              child: isSelected
+                  ? const Icon(
+                      Icons.check,
+                      size: 12,
+                      color: Colors.white,
+                    )
+                  : null,
+            ),
+
+            const SizedBox(width: 16),
+
+            // Icon
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.orange.withValues(alpha:0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(
+                Icons.local_shipping,
+                color: Colors.orange,
+                size: 24,
+              ),
+            ),
+
+            const SizedBox(width: 16),
+
+            // Text content
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'จัดส่งพัสดุ',
+                    style: AppTextStyles.body14Medium.copyWith(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.purpleText,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '2-5 วันทำการ',
+                    style: AppTextStyles.body12Regular.copyWith(
+                      color: AppColors.lightGray,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Price
+            Text(
+              '฿${parcelPrice.toStringAsFixed(0)}',
+              style: AppTextStyles.body14Medium.copyWith(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.orange,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 

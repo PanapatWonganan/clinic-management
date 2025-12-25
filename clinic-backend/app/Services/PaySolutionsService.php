@@ -92,25 +92,29 @@ class PaySolutionsService
 
     /**
      * Generate payment URL
+     * PaySolutions ePayment-L required parameters:
+     * - merchantid (8 digits)
+     * - refno (order reference, max 12 chars)
+     * - customeremail
+     * - productdetail (max 255 chars)
+     * - total (amount as integer, no decimals)
+     * - lang (optional: TH, EN)
+     * - cc (optional: currency code)
      */
     public function generatePaymentUrl(string $orderId, float $amount, array $options = []): string
     {
+        // PaySolutions requires total as integer (no decimals)
+        $total = (int) round($amount);
+
         $params = [
-            'merchantId' => $this->merchantId,
-            'orderId' => $orderId,
-            'amount' => number_format($amount, 2, '.', ''),
-            'currency' => config('paysolutions.currency'),
-            'language' => config('paysolutions.language'),
-            'callbackUrl' => config('paysolutions.callback_url'),
-            'returnUrl' => config('paysolutions.return_url'),
-            'cancelUrl' => config('paysolutions.cancel_url'),
+            'merchantid' => $this->merchantId,
+            'refno' => $orderId,
+            'customeremail' => $options['customerEmail'] ?? 'customer@example.com',
+            'productdetail' => $options['productName'] ?? 'Order #' . $orderId,
+            'total' => $total,
+            'lang' => config('paysolutions.language', 'TH'),
+            'cc' => config('paysolutions.currency', 'THB'),
         ];
-
-        // Add optional parameters
-        $params = array_merge($params, $options);
-
-        // Generate signature
-        $params['signature'] = $this->generateSignature($params);
 
         // Test mode: return test URL
         if ($this->testMode) {

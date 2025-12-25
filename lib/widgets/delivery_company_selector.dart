@@ -165,6 +165,8 @@ class DeliveryCompanySelector extends StatelessWidget {
         return const Color(0xFF00BF63); // Grab green
       case DeliveryCompany.lalamove:
         return const Color(0xFFFF6B35); // Lalamove orange
+      case DeliveryCompany.parcel:
+        return Colors.orange; // Parcel orange
     }
   }
 
@@ -174,6 +176,8 @@ class DeliveryCompanySelector extends StatelessWidget {
         return Icons.local_taxi;
       case DeliveryCompany.lalamove:
         return Icons.delivery_dining;
+      case DeliveryCompany.parcel:
+        return Icons.local_shipping;
     }
   }
 }

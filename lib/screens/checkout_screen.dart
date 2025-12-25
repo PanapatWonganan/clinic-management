@@ -1194,11 +1194,17 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     child: VehicleTypeSelector(
                       selectedVehicleType: selectedVehicleType,
+                      itemQuantity: cartItemCount,
                       onVehicleTypeChanged: (vehicleType) {
                         setState(() {
                           selectedVehicleType = vehicleType;
                           // Reset delivery option when vehicle type changes
                           selectedDeliveryOption = null;
+
+                          // Auto-set delivery option for parcel
+                          if (vehicleType == VehicleType.parcel) {
+                            selectedDeliveryOption = DeliveryOption.getParcelOption(cartItemCount);
+                          }
                         });
                       },
                     ),
@@ -1206,8 +1212,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
                   const SizedBox(height: 30),
 
-                  // Step 2: Company Selection (only show if vehicle type selected)
-                  if (selectedVehicleType != null) ...[
+                  // Step 2: Company Selection (only show if vehicle type selected and NOT parcel)
+                  if (selectedVehicleType != null && selectedVehicleType != VehicleType.parcel) ...[
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 20),
                       child: isLoadingDeliveryOptions

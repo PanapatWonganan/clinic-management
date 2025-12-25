@@ -1,6 +1,6 @@
-enum VehicleType { motorcycle, car }
+enum VehicleType { motorcycle, car, parcel }
 
-enum DeliveryCompany { grab, lalamove }
+enum DeliveryCompany { grab, lalamove, parcel }
 
 class DeliveryOption {
   final VehicleType vehicleType;
@@ -25,6 +25,8 @@ class DeliveryOption {
         return 'มอเตอร์ไซค์';
       case VehicleType.car:
         return 'รถยนต์';
+      case VehicleType.parcel:
+        return 'พัสดุ';
     }
   }
 
@@ -34,6 +36,8 @@ class DeliveryOption {
         return 'Grab';
       case DeliveryCompany.lalamove:
         return 'Lalamove';
+      case DeliveryCompany.parcel:
+        return 'พัสดุ';
     }
   }
 
@@ -43,6 +47,8 @@ class DeliveryOption {
         return 'grab';
       case DeliveryCompany.lalamove:
         return 'lalamove';
+      case DeliveryCompany.parcel:
+        return 'parcel';
     }
   }
 
@@ -57,13 +63,33 @@ class DeliveryOption {
 
   // Factory methods for creating delivery options from API data
   factory DeliveryOption.fromJson(Map<String, dynamic> json) {
+    VehicleType vehicleType;
+    switch (json['vehicle_type']) {
+      case 'motorcycle':
+        vehicleType = VehicleType.motorcycle;
+        break;
+      case 'parcel':
+        vehicleType = VehicleType.parcel;
+        break;
+      default:
+        vehicleType = VehicleType.car;
+    }
+
+    DeliveryCompany company;
+    switch (json['company']) {
+      case 'grab':
+        company = DeliveryCompany.grab;
+        break;
+      case 'parcel':
+        company = DeliveryCompany.parcel;
+        break;
+      default:
+        company = DeliveryCompany.lalamove;
+    }
+
     return DeliveryOption(
-      vehicleType: json['vehicle_type'] == 'motorcycle' 
-          ? VehicleType.motorcycle 
-          : VehicleType.car,
-      company: json['company'] == 'grab' 
-          ? DeliveryCompany.grab 
-          : DeliveryCompany.lalamove,
+      vehicleType: vehicleType,
+      company: company,
       displayName: json['display_name'],
       subtitle: json['estimated_time'],
       price: double.parse(json['price'].toString()),
@@ -72,13 +98,55 @@ class DeliveryOption {
   }
 
   Map<String, dynamic> toJson() {
+    String vehicleTypeStr;
+    switch (vehicleType) {
+      case VehicleType.motorcycle:
+        vehicleTypeStr = 'motorcycle';
+        break;
+      case VehicleType.parcel:
+        vehicleTypeStr = 'parcel';
+        break;
+      default:
+        vehicleTypeStr = 'car';
+    }
+
     return {
-      'vehicle_type': vehicleType == VehicleType.motorcycle ? 'motorcycle' : 'car',
-      'company': company == DeliveryCompany.grab ? 'grab' : 'lalamove',
+      'vehicle_type': vehicleTypeStr,
+      'company': companyCode,
       'display_name': displayName,
       'price': price,
       'estimated_time': estimatedTime,
     };
+  }
+
+  /// Calculate parcel delivery price based on quantity (boxes)
+  /// 1 box = 50 THB
+  /// 2-49 boxes = 100 THB
+  /// 50-99 boxes = 180 THB
+  /// 100-199 boxes = 250 THB
+  /// 200-300 boxes = 350 THB
+  /// >300 boxes = 500 THB
+  static double calculateParcelPrice(int quantity) {
+    if (quantity <= 0) return 0;
+    if (quantity <= 1) return 50;
+    if (quantity <= 49) return 100;
+    if (quantity <= 99) return 180;
+    if (quantity <= 199) return 250;
+    if (quantity <= 300) return 350;
+    return 500;
+  }
+
+  /// Get parcel delivery option with calculated price
+  static DeliveryOption getParcelOption(int quantity) {
+    final price = calculateParcelPrice(quantity);
+    return DeliveryOption(
+      vehicleType: VehicleType.parcel,
+      company: DeliveryCompany.parcel,
+      displayName: 'จัดส่งพัสดุ',
+      subtitle: '2-5 วันทำการ',
+      price: price,
+      estimatedTime: '2-5 วันทำการ',
+    );
   }
 
   // Get sample delivery options (fallback for when API is not available)
