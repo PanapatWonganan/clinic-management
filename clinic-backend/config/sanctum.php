@@ -47,7 +47,9 @@ return [
     |
     */
 
-    'expiration' => null,
+    // 30 days. Override via SANCTUM_EXPIRATION if a device lifetime is needed.
+    // A null default let tokens live forever, so leaked or stale credentials never aged out.
+    'expiration' => env('SANCTUM_EXPIRATION', 60 * 24 * 30),
 
     /*
     |--------------------------------------------------------------------------

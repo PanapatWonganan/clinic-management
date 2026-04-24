@@ -12,6 +12,8 @@ class ApiService {
   // Use centralized configuration for base URL
   static String get baseUrl => AppConfig.apiBaseUrl;
 
+  static const Duration _defaultTimeout = Duration(seconds: 20);
+
   // Get headers with authorization
   static Map<String, String> _getHeaders() {
     final headers = <String, String>{
@@ -26,11 +28,22 @@ class ApiService {
     return headers;
   }
 
+  // Why: when the server rejects our token, keeping it in memory means every
+  // subsequent request loops on the same 401. Drop it locally so the next UI
+  // tick routes the user back to login.
+  static Future<void> _handleUnauthorized(http.Response response) async {
+    if (response.statusCode == 401 && AuthService.instance.token != null) {
+      await AuthService.instance.clearSessionDueToUnauthorized();
+    }
+  }
+
   // GET request
   static Future<http.Response> get(String endpoint) async {
     try {
       final url = Uri.parse('$baseUrl$endpoint');
-      final response = await http.get(url, headers: _getHeaders());
+      final response =
+          await http.get(url, headers: _getHeaders()).timeout(_defaultTimeout);
+      await _handleUnauthorized(response);
       return response;
     } catch (e) {
       throw Exception('Network error: $e');
@@ -42,11 +55,14 @@ class ApiService {
       String endpoint, Map<String, dynamic> data) async {
     try {
       final url = Uri.parse('$baseUrl$endpoint');
-      final response = await http.post(
-        url,
-        headers: _getHeaders(),
-        body: json.encode(data),
-      );
+      final response = await http
+          .post(
+            url,
+            headers: _getHeaders(),
+            body: json.encode(data),
+          )
+          .timeout(_defaultTimeout);
+      await _handleUnauthorized(response);
       return response;
     } catch (e) {
       throw Exception('Network error: $e');
@@ -58,11 +74,14 @@ class ApiService {
       String endpoint, Map<String, dynamic> data) async {
     try {
       final url = Uri.parse('$baseUrl$endpoint');
-      final response = await http.put(
-        url,
-        headers: _getHeaders(),
-        body: json.encode(data),
-      );
+      final response = await http
+          .put(
+            url,
+            headers: _getHeaders(),
+            body: json.encode(data),
+          )
+          .timeout(_defaultTimeout);
+      await _handleUnauthorized(response);
       return response;
     } catch (e) {
       throw Exception('Network error: $e');
@@ -73,7 +92,10 @@ class ApiService {
   static Future<http.Response> delete(String endpoint) async {
     try {
       final url = Uri.parse('$baseUrl$endpoint');
-      final response = await http.delete(url, headers: _getHeaders());
+      final response = await http
+          .delete(url, headers: _getHeaders())
+          .timeout(_defaultTimeout);
+      await _handleUnauthorized(response);
       return response;
     } catch (e) {
       throw Exception('Network error: $e');

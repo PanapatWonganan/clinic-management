@@ -10,8 +10,10 @@ return [
     |
     */
 
-    // Test mode (true = sandbox, false = production)
-    'test_mode' => env('PAYSOLUTIONS_TEST_MODE', true),
+    // Test mode (true = sandbox, false = production).
+    // Why: default-true on production would route real transactions through the sandbox
+    // and mark orders paid without money moving. Fail safe to false unless explicitly opted in.
+    'test_mode' => env('PAYSOLUTIONS_TEST_MODE', env('APP_ENV') !== 'production'),
 
     // API Credentials
     'api_key' => env('PAYSOLUTIONS_API_KEY', 'test_api_key'),

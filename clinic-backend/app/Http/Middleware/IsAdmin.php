@@ -15,16 +15,17 @@ class IsAdmin
      */
     public function handle(Request $request, Closure $next): Response
     {
-        // ตรวจสอบว่า user login แล้วและเป็น admin
-        if (!auth()->check() || !auth()->user()->is_admin) {
-            // ถ้าเป็น API request ให้ส่ง JSON response
-            if ($request->expectsJson()) {
+        // Resolve user from whichever guard authenticated the request
+        // (sanctum bearer for API, web session for Blade admin).
+        $user = $request->user();
+
+        if (!$user || !$user->is_admin) {
+            if ($request->expectsJson() || $request->is('api/*')) {
                 return response()->json([
-                    'message' => 'คุณไม่มีสิทธิ์เข้าถึงระบบหลังบ้าน'
-                ], 403);
+                    'message' => 'คุณไม่มีสิทธิ์เข้าถึงระบบหลังบ้าน',
+                ], $user ? 403 : 401);
             }
 
-            // ถ้าเป็น web request ให้ redirect ไป login
             return redirect()->route('admin.login')
                 ->withErrors(['error' => 'คุณไม่มีสิทธิ์เข้าถึงระบบหลังบ้าน']);
         }

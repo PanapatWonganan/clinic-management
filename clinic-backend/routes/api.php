@@ -3,20 +3,19 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ProfileController;
-use App\Http\Controllers\PatientController;
-use App\Http\Controllers\AppointmentController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\OrderController;
-use App\Http\Controllers\CartController;
 use App\Http\Controllers\CustomerAddressController;
 use App\Http\Controllers\DeliveryPriceController;
 use App\Http\Controllers\MembershipPricingController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\FreeItemRedemptionController;
 
-// Authentication routes
-Route::post('/auth/login', [AuthController::class, 'login']);
-Route::post('/auth/register', [AuthController::class, 'register']);
+// Authentication routes (rate-limited to deter brute force)
+Route::middleware('throttle:10,1')->group(function () {
+    Route::post('/auth/login', [AuthController::class, 'login']);
+    Route::post('/auth/register', [AuthController::class, 'register']);
+});
 Route::post('/auth/logout', [AuthController::class, 'logout'])->middleware('auth:sanctum');
 
 // Profile routes
@@ -34,22 +33,18 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/redeemable-products', [FreeItemRedemptionController::class, 'availableProducts']);
 });
 
-// Patient routes
-Route::apiResource('patients', PatientController::class);
-
-// Appointment routes  
-Route::apiResource('appointments', AppointmentController::class);
-
 // Custom Product endpoints (must come before apiResource)
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/products/main', [\App\Http\Controllers\ProductController::class, 'getMainProducts']);
     Route::get('/products/rewards', [\App\Http\Controllers\ProductController::class, 'getRewardProducts']);
 });
-Route::put('/products/{id}/stock', [\App\Http\Controllers\ProductController::class, 'updateStock']);
 
-// Product routes (auth is optional for membership pricing)
-Route::get('/products', [ProductController::class, 'index']);
-Route::apiResource('products', ProductController::class)->except(['index']);
+// Product routes
+Route::get('/products', [ProductController::class, 'index']); // public list (membership pricing when authed)
+Route::middleware(['auth:sanctum', 'admin'])->group(function () {
+    Route::put('/products/{id}/stock', [\App\Http\Controllers\ProductController::class, 'updateStock']);
+    Route::apiResource('products', ProductController::class)->except(['index']);
+});
 
 // Order routes (protected by authentication)
 Route::middleware('auth:sanctum')->group(function () {
@@ -67,26 +62,20 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('addresses', CustomerAddressController::class);
     Route::put('/addresses/{id}/set-default', [CustomerAddressController::class, 'setDefault']);
 
-    // PaySolutions payment routes
-    Route::post('/payment/create', [PaymentController::class, 'createPayment']);
-    Route::get('/payment/status/{paymentId}', [PaymentController::class, 'checkStatus']);
+    // PaySolutions payment routes (rate-limited to prevent abuse / duplicate charges)
+    Route::middleware('throttle:20,1')->group(function () {
+        Route::post('/payment/create', [PaymentController::class, 'createPayment']);
+        Route::get('/payment/status/{paymentId}', [PaymentController::class, 'checkStatus']);
+        Route::post('/payment/verify/{paymentId}', [PaymentController::class, 'verifyAndUpdatePayment']);
+    });
 });
 
-// Cart routes
-Route::prefix('cart')->group(function () {
-    Route::get('/', [CartController::class, 'index']);
-    Route::post('/add', [CartController::class, 'addItem']);
-    Route::put('/update/{item}', [CartController::class, 'updateItem']);
-    Route::delete('/remove/{item}', [CartController::class, 'removeItem']);
-    Route::delete('/clear', [CartController::class, 'clear']);
+// Customer routes (admin only)
+Route::middleware(['auth:sanctum', 'admin'])->group(function () {
+    Route::apiResource('customers', \App\Http\Controllers\Admin\CustomerController::class);
+    Route::get('/customers-stats', [\App\Http\Controllers\Admin\CustomerController::class, 'stats']);
+    Route::get('/admin/customers/{id}/addresses', [\App\Http\Controllers\Admin\CustomerController::class, 'getAddresses']);
 });
-
-// Customer routes
-Route::apiResource('customers', \App\Http\Controllers\Admin\CustomerController::class);
-Route::get('/customers-stats', [\App\Http\Controllers\Admin\CustomerController::class, 'stats']);
-
-// Admin customer addresses route
-Route::get('/admin/customers/{id}/addresses', [\App\Http\Controllers\Admin\CustomerController::class, 'getAddresses']);
 
 // Delivery price routes
 Route::prefix('delivery')->group(function () {
@@ -113,38 +102,32 @@ Route::prefix('membership')->group(function () {
 });
 
 // Serve storage files with CORS headers (workaround for Laravel serve)
-Route::get('/storage/{path}', function (Illuminate\Http\Request $request) {
-    // Get the full path after /api/storage/
-    $fullPath = $request->path();
-    $path = str_replace('api/storage/', '', $fullPath);
+Route::get('/storage/{path}', function (string $path) {
+    $publicDir = realpath(storage_path('app/public'));
+    $filePath = realpath(storage_path('app/public/' . $path));
 
-    $filePath = storage_path('app/public/' . $path);
-
-    if (!file_exists($filePath)) {
-        abort(404, 'File not found: ' . $path);
+    // Reject if resolution failed or path escapes the public storage dir
+    if (!$publicDir || !$filePath || !str_starts_with($filePath, $publicDir . DIRECTORY_SEPARATOR)) {
+        abort(404);
     }
 
     if (is_dir($filePath)) {
-        abort(404, 'Path is a directory: ' . $path);
+        abort(404);
     }
 
-    $file = file_get_contents($filePath);
-    $mimeType = mime_content_type($filePath);
-
-    return response($file)
-        ->header('Content-Type', $mimeType)
-        ->header('Access-Control-Allow-Origin', '*')
-        ->header('Access-Control-Allow-Methods', 'GET, OPTIONS')
-        ->header('Access-Control-Allow-Headers', '*');
+    return response()->file($filePath, [
+        'Access-Control-Allow-Origin' => '*',
+        'Access-Control-Allow-Methods' => 'GET, OPTIONS',
+    ]);
 })->where('path', '.*');
 
 // Payment callback (webhook) - no auth required
 Route::post('/payment/callback', [PaymentController::class, 'handleCallback']);
 
-// Test payment simulation routes (only available in test mode)
-Route::post('/payment/simulate', [PaymentController::class, 'simulatePayment']);
-
-// Test route
-Route::get('/test', function () {
-    return response()->json(['message' => 'API is working!', 'timestamp' => now()]);
-});
+// Test payment simulation — only exposed outside production
+if (!app()->environment('production')) {
+    Route::post('/payment/simulate', [PaymentController::class, 'simulatePayment']);
+    Route::get('/test', function () {
+        return response()->json(['message' => 'API is working!', 'timestamp' => now()]);
+    });
+}

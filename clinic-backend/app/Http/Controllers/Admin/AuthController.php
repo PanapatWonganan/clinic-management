@@ -5,8 +5,6 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Hash;
-use App\Models\User;
 
 class AuthController extends Controller
 {
@@ -18,17 +16,6 @@ class AuthController extends Controller
         ]);
 
         $credentials = $request->only('email', 'password');
-
-        // ถ้าไม่มี admin user ในระบบ ให้สร้าง default admin
-        if (User::where('is_admin', true)->count() == 0) {
-            User::create([
-                'name' => 'Admin',
-                'email' => 'admin@exquiller.com',
-                'password' => Hash::make('Admin@123'),
-                'email_verified_at' => now(),
-                'is_admin' => true,
-            ]);
-        }
 
         if (Auth::attempt($credentials)) {
             $user = Auth::user();

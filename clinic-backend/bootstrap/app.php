@@ -16,6 +16,16 @@ return Application::configure(basePath: dirname(__DIR__))
             \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
         ]);
 
+        // Return null from redirectTo on API requests so Authenticate sends a
+        // proper 401 JSON instead of trying to redirect to a non-existent
+        // `login` named route.
+        $middleware->redirectGuestsTo(function ($request) {
+            if ($request->is('api/*') || $request->expectsJson()) {
+                return null;
+            }
+            return route('admin.login');
+        });
+
         // ปิด CSRF protection สำหรับ API routes และ admin login
         $middleware->validateCsrfTokens(except: [
             'api/*',
@@ -33,5 +43,11 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+        // Force JSON responses for unauthenticated API requests. Without this
+        // the default Authenticate middleware tries to redirect to a `login`
+        // named route (which doesn't exist — we only have admin.login), so
+        // a 401 on /api/* ends up as an HTML 500 from RouteNotFoundException.
+        $exceptions->shouldRenderJsonWhen(function ($request) {
+            return $request->is('api/*') || $request->expectsJson();
+        });
     })->create();

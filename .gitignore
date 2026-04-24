@@ -26,3 +26,25 @@ clinic-backend/bootstrap/cache/*
 .vscode/
 *.swp
 *.swo
+
+# Secrets / scratch files (never commit — CRITICAL)
+*cookies*.txt
+*_cookies.txt
+*_test.txt
+ssh_key*.txt
+github_actions_pubkey.txt
+*.pem
+*.key
+admin_response.html
+response.html
+# Scp-mishap artifact directory
+root@*/
+
+# Flutter build cache / dev browser profile (contains live session cookies)
+.dart_tool/
+build/
+
+# Large build artifacts — use release assets instead
+frontend-build.tar.gz
+frontend-production.tar.gz
+product-images.tar.gz

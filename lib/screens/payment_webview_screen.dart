@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/services.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'dart:async';
 import 'dart:convert';
 import '../constants/app_colors.dart';
 import '../constants/app_text_styles.dart';
@@ -35,6 +36,7 @@ class _PaymentWebViewScreenState extends State<PaymentWebViewScreen> {
   bool _isLoading = true;
   bool _isCheckingStatus = false;
   String? _errorMessage;
+  Timer? _pollTimer;
 
   @override
   void initState() {
@@ -49,6 +51,12 @@ class _PaymentWebViewScreenState extends State<PaymentWebViewScreen> {
       // For mobile, initialize WebView
       _initializeWebView();
     }
+  }
+
+  @override
+  void dispose() {
+    _pollTimer?.cancel();
+    super.dispose();
   }
 
   void _initializeWebView() {
@@ -179,10 +187,13 @@ class _PaymentWebViewScreenState extends State<PaymentWebViewScreen> {
   }
 
   void _checkUrlForPaymentResult(String url) {
-    // Check if URL indicates payment success or cancellation
-    if (url.contains('/payment/success') || url.contains('success')) {
+    // Match only explicit result paths so unrelated pages (e.g. marketing URLs that
+    // happen to contain the word "success") don't falsely mark an order paid.
+    final uri = Uri.tryParse(url);
+    final path = uri?.path ?? '';
+    if (path.endsWith('/payment/success') || path.endsWith('/payment/complete')) {
       _handlePaymentSuccess();
-    } else if (url.contains('/payment/cancel') || url.contains('cancel')) {
+    } else if (path.endsWith('/payment/cancel') || path.endsWith('/payment/failed')) {
       _handlePaymentCancelled();
     }
   }
@@ -224,6 +235,27 @@ class _PaymentWebViewScreenState extends State<PaymentWebViewScreen> {
 
   Future<void> _checkPaymentStatus({bool expectSuccess = false}) async {
     try {
+      // First, try to verify and update payment via backend
+      // This will check with PaySolutions API and update order if paid
+      if (expectSuccess) {
+        final verifyResponse = await ApiService.post('/payment/verify/${widget.paymentId}', {});
+
+        if (verifyResponse.statusCode == 200) {
+          final verifyData = json.decode(verifyResponse.body);
+          debugPrint('Verify response: $verifyData');
+
+          if (verifyData['success'] == true) {
+            final status = verifyData['data']['status'];
+
+            if (status == 'success') {
+              _navigateToSuccess();
+              return;
+            }
+          }
+        }
+      }
+
+      // Fallback: check payment status from our database
       final response = await ApiService.get('/payment/status/${widget.paymentId}');
 
       if (response.statusCode == 200) {
@@ -334,11 +366,17 @@ class _PaymentWebViewScreenState extends State<PaymentWebViewScreen> {
   }
 
   void _startStatusPolling() {
-    // Poll status every 3 seconds for web platform
-    Future.delayed(const Duration(seconds: 3), () {
-      if (mounted && !_isCheckingStatus) {
+    // Single periodic timer — re-entrancy is prevented by the _isCheckingStatus guard.
+    // Previous recursive Future.delayed implementation spawned overlapping chains
+    // every time the screen re-checked, which leaked work and hit the API in bursts.
+    _pollTimer?.cancel();
+    _pollTimer = Timer.periodic(const Duration(seconds: 3), (_) {
+      if (!mounted) {
+        _pollTimer?.cancel();
+        return;
+      }
+      if (!_isCheckingStatus) {
         _checkPaymentStatus();
-        _startStatusPolling();
       }
     });
   }

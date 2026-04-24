@@ -170,8 +170,8 @@ Route::get('/admin', function () {
     return redirect()->route('admin.login');
 });
 
-// Test address API (temporarily public for debugging)
-Route::prefix('test/address')->group(function () {
+// Public Thai address lookup (read-only reference data — used by the Flutter app, rate-limited)
+Route::prefix('test/address')->middleware('throttle:60,1')->group(function () {
     Route::get('/provinces', [AdminAddressController::class, 'provinces']);
     Route::get('/districts/{province_id}', [AdminAddressController::class, 'districts']);
     Route::get('/sub-districts/{district_id}', [AdminAddressController::class, 'subDistricts']);
@@ -180,13 +180,13 @@ Route::prefix('test/address')->group(function () {
 });
 
 
-// Telegram test route
-Route::get('/telegram/test', function () {
-    $telegramService = new TelegramService();
-    $result = $telegramService->testConnection();
-
-    return response()->json($result);
-})->name('telegram.test');
+// Telegram test route — non-production only
+if (!app()->environment('production')) {
+    Route::get('/telegram/test', function () {
+        $telegramService = new TelegramService();
+        return response()->json($telegramService->testConnection());
+    })->name('telegram.test');
+}
 
 // Test payment page (only in test mode)
 Route::get('/payment/test/{order_id}', [PaymentController::class, 'testPaymentPage'])->name('payment.test');

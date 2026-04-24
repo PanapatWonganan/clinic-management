@@ -6,7 +6,7 @@ import 'api_service.dart';
 class AuthService {
   static const String _tokenKey = 'auth_token';
   static const String _userKey = 'user_data';
-  
+
   static AuthService? _instance;
   static AuthService get instance => _instance ??= AuthService._();
   AuthService._();
@@ -16,14 +16,20 @@ class AuthService {
 
   // Get current token
   String? get token => _token;
-  
+
   // Get current user data
   Map<String, dynamic>? get userData => _userData;
-  
+
   // Check if user is logged in
-  bool get isLoggedIn {
-    debugPrint('AuthService.isLoggedIn: $_token != null = ${_token != null}');
-    return _token != null;
+  bool get isLoggedIn => _token != null;
+
+  // Drop stored credentials when the server says they're invalid.
+  // Why: ApiService invokes this on any 401 so the app stops looping on
+  // a revoked or expired token.
+  Future<void> clearSessionDueToUnauthorized() async {
+    _token = null;
+    _userData = null;
+    await _clearStorage();
   }
 
   // Login with email and password

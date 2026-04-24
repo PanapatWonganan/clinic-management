@@ -22,3 +22,13 @@
 Homestead.json
 Homestead.yaml
 Thumbs.db
+
+# Secrets / scratch files (never commit)
+*cookies*.txt
+*_test.txt
+*_cookies.txt
+admin_response.html
+response.html
+ssh_key*.txt
+*.pem
+*.key

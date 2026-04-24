@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'constants/app_config.dart';
 import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
 import 'services/auth_service.dart';
@@ -13,8 +14,11 @@ void main() async {
   // โหลด token จาก storage
   await AuthService.instance.loadTokenFromStorage();
 
-  // ทดสอบการเชื่อมต่อ API สำหรับค่าส่ง
-  await DeliveryService.testApiConnection();
+  // Dev-only: probe the delivery API so we catch config regressions early.
+  // Production boot should not block on an auxiliary network call.
+  if (AppConfig.isDevelopment) {
+    DeliveryService.testApiConnection().catchError((_) {});
+  }
 
   runApp(const ClinicApp());
 }

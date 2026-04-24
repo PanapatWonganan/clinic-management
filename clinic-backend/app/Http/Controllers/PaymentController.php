@@ -140,7 +140,7 @@ class PaymentController extends Controller
 
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to create payment: ' . $e->getMessage(),
+                'message' => 'Failed to create payment',
             ], 500);
         }
     }
@@ -166,18 +166,38 @@ class PaymentController extends Controller
             $status = $request->input('status');
             $amount = $request->input('amount');
 
-            // Find payment transaction
-            $payment = PaymentTransaction::where('transaction_id', $transactionId)
-                ->orWhere(function ($query) use ($orderId) {
-                    $query->whereHas('order', function ($q) use ($orderId) {
+            // Locate payment — prefer exact transaction_id match, fall back to the
+            // pending-by-order-number lookup so we don't retroactively mark an old success.
+            $payment = null;
+            if (!empty($transactionId)) {
+                $payment = PaymentTransaction::where('transaction_id', $transactionId)->first();
+            }
+            if (!$payment && !empty($orderId)) {
+                $payment = PaymentTransaction::whereHas('order', function ($q) use ($orderId) {
                         $q->where('order_number', $orderId);
-                    });
-                })
-                ->first();
+                    })
+                    ->where('status', 'pending')
+                    ->orderByDesc('id')
+                    ->first();
+            }
 
             if (!$payment) {
-                Log::error('Payment transaction not found', ['transaction_id' => $transactionId]);
+                Log::error('Payment transaction not found', [
+                    'transaction_id' => $transactionId,
+                    'order_id' => $orderId,
+                ]);
                 return response()->json(['success' => false, 'message' => 'Transaction not found'], 404);
+            }
+
+            // Amount sanity check — reject if the callback amount doesn't match the recorded order total
+            // (tolerate 1 THB rounding, matching verifyTransaction()).
+            if ($amount !== null && $amount !== '' && abs((float) $amount - (float) $payment->amount) > 1) {
+                Log::error('Payment callback amount mismatch', [
+                    'payment_id' => $payment->id,
+                    'expected' => $payment->amount,
+                    'received' => $amount,
+                ]);
+                return response()->json(['success' => false, 'message' => 'Amount mismatch'], 400);
             }
 
             DB::beginTransaction();
@@ -260,6 +280,110 @@ class PaymentController extends Controller
     }
 
     /**
+     * Verify payment with PaySolutions and update order if successful
+     * This is called by Flutter when user returns from payment page
+     */
+    public function verifyAndUpdatePayment($paymentId)
+    {
+        Log::info('Verify payment request', ['payment_id' => $paymentId]);
+
+        try {
+            $payment = PaymentTransaction::with('order')->findOrFail($paymentId);
+
+            // If already successful, return immediately
+            if ($payment->status === 'success') {
+                return response()->json([
+                    'success' => true,
+                    'data' => [
+                        'payment_id' => $payment->id,
+                        'status' => 'success',
+                        'already_processed' => true,
+                        'order' => [
+                            'id' => $payment->order->id,
+                            'order_number' => $payment->order->order_number,
+                            'status' => $payment->order->status,
+                        ],
+                    ],
+                ]);
+            }
+
+            // Query PaySolutions API to check transaction status
+            $verificationResult = $this->paymentService->verifyTransaction(
+                $payment->order->order_number,
+                $payment->amount
+            );
+
+            Log::info('PaySolutions verification result', $verificationResult);
+
+            if ($verificationResult['success'] && $verificationResult['paid'] === true) {
+                // Payment confirmed - update status
+                DB::beginTransaction();
+
+                $payment->markAsSuccess([
+                    'verified_at' => now(),
+                    'verification_source' => 'manual_verify',
+                    'paysolutions_data' => $verificationResult['data'] ?? null,
+                ]);
+
+                // Update order status
+                $order = $payment->order;
+                $order->update([
+                    'payment_status' => 'paid',
+                    'status' => Order::STATUS_PAID,
+                ]);
+
+                DB::commit();
+
+                Log::info('Payment verified and order updated', [
+                    'payment_id' => $payment->id,
+                    'order_id' => $order->id,
+                    'order_number' => $order->order_number,
+                ]);
+
+                // Send Telegram notification
+                \App\Jobs\SendTelegramNotification::dispatch($order, 'payment_success');
+
+                return response()->json([
+                    'success' => true,
+                    'data' => [
+                        'payment_id' => $payment->id,
+                        'status' => 'success',
+                        'just_verified' => true,
+                        'order' => [
+                            'id' => $order->id,
+                            'order_number' => $order->order_number,
+                            'status' => $order->status,
+                        ],
+                    ],
+                ]);
+            }
+
+            // Payment not yet confirmed
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'payment_id' => $payment->id,
+                    'status' => $payment->status,
+                    'verified' => false,
+                    'message' => $verificationResult['message'] ?? 'Payment not yet confirmed',
+                ],
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Payment verification error', [
+                'payment_id' => $paymentId,
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to verify payment',
+            ], 500);
+        }
+    }
+
+    /**
      * Test mode payment page
      */
     public function testPaymentPage($orderId)
@@ -283,7 +407,8 @@ class PaymentController extends Controller
      */
     public function simulatePayment(Request $request)
     {
-        if (!$this->paymentService->isTestMode()) {
+        // Hard guard: never available on the production environment, regardless of test_mode flag.
+        if (app()->environment('production') || !$this->paymentService->isTestMode()) {
             abort(404);
         }
 
