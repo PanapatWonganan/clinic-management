@@ -33,9 +33,15 @@ jobs:
           # Go to deployment directory
           cd ~/deployment
 
-          # Pull latest code
-          echo "⬇️  Pulling latest code..."
-          git pull origin main
+          # Fetch and hard-reset to origin/main.
+          # `git pull` cannot recover from a force-pushed history rewrite; a
+          # fetch + reset is the only safe way to converge on the current
+          # remote state. Any uncommitted changes on the server will be lost
+          # — which is what we want for a deployment target.
+          echo "⬇️  Fetching latest code..."
+          git fetch origin main
+          git reset --hard origin/main
+          git clean -fd
 
           # Deploy Backend
           echo "🔧 Deploying backend..."
