@@ -4,13 +4,12 @@ on:
   push:
     branches:
       - main
-  workflow_dispatch:  # Allows manual trigger
+  workflow_dispatch:
 
 jobs:
-  deploy:
-    name: Deploy to Server
+  diagnose:
+    name: Diagnose server state
     runs-on: ubuntu-latest
-
     steps:
       - name: Setup SSH
         env:
@@ -23,46 +22,39 @@ jobs:
           echo "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
           chmod 644 ~/.ssh/known_hosts
 
-      - name: Deploy to Server
+      - name: Report layout
         run: |
-          ssh root@45.32.102.242 << 'ENDSSH'
-          set -e
-
-          echo "📦 Deploying to production..."
-
-          # Go to deployment directory
-          cd ~/deployment
-
-          # Fetch and hard-reset to origin/main.
-          # `git pull` cannot recover from a force-pushed history rewrite; a
-          # fetch + reset is the only safe way to converge on the current
-          # remote state. Any uncommitted changes on the server will be lost
-          # — which is what we want for a deployment target.
-          echo "⬇️  Fetching latest code..."
-          git fetch origin main
-          git reset --hard origin/main
-          git clean -fd
-
-          # Deploy Backend
-          echo "🔧 Deploying backend..."
-          cd ~/deployment/clinic-backend
-          composer install --optimize-autoloader --no-dev --no-interaction
-          php artisan migrate --force
-          php artisan config:cache
-          php artisan route:cache
-          php artisan view:cache
-          php artisan storage:link
-          php artisan queue:restart
-
-          echo "✅ Deployment completed!"
-          ENDSSH
-
-      - name: Notify
-        if: always()
-        run: |
-          if [ ${{ job.status }} == 'success' ]; then
-            echo "✅ Deployment successful!"
+          ssh -o BatchMode=yes root@45.32.102.242 bash -s <<'ENDSSH'
+          set -u
+          echo "=== ~/deployment ==="
+          ls -la ~/deployment 2>&1 | head -20 || echo "(missing)"
+          echo ""
+          echo "=== ~/deployment git state ==="
+          if [ -d ~/deployment/.git ]; then
+            cd ~/deployment
+            git remote -v
+            git rev-parse HEAD 2>&1 || true
+            git status --short | head -10
           else
-            echo "❌ Deployment failed!"
-            exit 1
+            echo "(not a git repo)"
           fi
+          echo ""
+          echo "=== /var/www ==="
+          ls -la /var/www/ 2>&1 | head -20
+          echo ""
+          echo "=== api.exquillermember.com contents ==="
+          ls -la /var/www/api.exquillermember.com/ 2>&1 | head -20
+          echo ""
+          echo "=== /var/www/api is it a symlink? ==="
+          readlink -f /var/www/api.exquillermember.com 2>&1 || true
+          echo ""
+          echo "=== nginx config that serves api.exquillermember.com ==="
+          grep -rl "api.exquillermember.com" /etc/nginx/ 2>&1 | head -5
+          grep -A5 "root " /etc/nginx/sites-enabled/*api* 2>&1 | head -10 || true
+          echo ""
+          echo "=== php version ==="
+          php --version | head -1
+          echo ""
+          echo "=== .env on api dir present? (not contents) ==="
+          ls -la /var/www/api.exquillermember.com/.env 2>&1 || echo "(no .env)"
+          ENDSSH
