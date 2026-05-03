@@ -58,7 +58,7 @@ $orderNumber = 'ORD-' . date('Ymd') . '-' . str_pad(Order::whereDate('created_at
 
 ---
 
-### [ ] C3. `simulatePayment` เรียก `handleCallback` โดย bypass signature check
+### [x] C3. `simulatePayment` เรียก `handleCallback` โดย bypass signature check
 **ไฟล์:** `clinic-backend/app/Http/Controllers/PaymentController.php:408-467`
 
 **ทำไมเป็น bug:**
@@ -79,7 +79,7 @@ $orderNumber = 'ORD-' . date('Ymd') . '-' . str_pad(Order::whereDate('created_at
 
 ---
 
-### [ ] C4. `verifyAndUpdatePayment` ไม่เช็คเจ้าของ order — IDOR
+### [x] C4. `verifyAndUpdatePayment` ไม่เช็คเจ้าของ order — IDOR
 **ไฟล์:** `clinic-backend/app/Http/Controllers/PaymentController.php:286-384`
 
 **ทำไมเป็น bug:**
@@ -99,7 +99,7 @@ if ($payment->order->user_id !== auth()->id()) {
 
 ---
 
-### [ ] C5. `checkStatus` ก็ไม่เช็คเจ้าของเหมือนกัน — leak payment status คนอื่น
+### [x] C5. `checkStatus` ก็ไม่เช็คเจ้าของเหมือนกัน — leak payment status คนอื่น
 **ไฟล์:** `clinic-backend/app/Http/Controllers/PaymentController.php:251-280`
 
 **ทำไมเป็น bug:**

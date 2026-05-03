@@ -152,15 +152,32 @@ class PaymentController extends Controller
     {
         Log::info('Payment callback received', $request->all());
 
-        try {
-            // Verify callback signature
-            if (!$this->paymentService->isTestMode()) {
-                if (!$this->paymentService->verifyCallback($request->all())) {
-                    Log::error('Invalid payment callback signature');
-                    return response()->json(['success' => false, 'message' => 'Invalid signature'], 400);
-                }
-            }
+        // Always verify the callback signature. Previously this was skipped
+        // whenever PaySolutions test_mode was on, which left any non-production
+        // deploy that pointed at the real database open to unauthenticated
+        // callers flipping orders to "paid". The internal simulate flow goes
+        // through processCallbackData() directly and never reaches this entry
+        // point, so we can require a valid signature here unconditionally.
+        if (!$this->paymentService->verifyCallback($request->all())) {
+            Log::error('Invalid payment callback signature');
 
+            return response()->json(['success' => false, 'message' => 'Invalid signature'], 400);
+        }
+
+        return $this->processCallbackData($request->all());
+    }
+
+    /**
+     * Apply a callback payload to the matching payment transaction.
+     * Internal helper — does NOT verify a signature. The public callback entry
+     * point handleCallback() is responsible for that. Test-mode simulation
+     * also calls this directly because the simulate route is itself gated
+     * behind a non-production environment check.
+     */
+    protected function processCallbackData(array $payload)
+    {
+        try {
+            $request = new Request($payload);
             $transactionId = $request->input('transaction_id') ?? $request->input('ref_no');
             $orderId = $request->input('order_id') ?? $request->input('ref_order');
             $status = $request->input('status');
@@ -253,6 +270,13 @@ class PaymentController extends Controller
         try {
             $payment = PaymentTransaction::with('order')->findOrFail($paymentId);
 
+            // Ownership check — the route is behind auth:sanctum but didn't
+            // verify that the payment belongs to the caller, leaking other
+            // users' order/payment status to anyone who can enumerate ids.
+            if (!$payment->order || $payment->order->user_id !== auth()->id()) {
+                return response()->json(['success' => false, 'message' => 'Forbidden'], 403);
+            }
+
             return response()->json([
                 'success' => true,
                 'data' => [
@@ -289,6 +313,13 @@ class PaymentController extends Controller
 
         try {
             $payment = PaymentTransaction::with('order')->findOrFail($paymentId);
+
+            // Ownership check — without this any logged-in user could trigger
+            // verification (and the resulting Telegram dispatch + stock
+            // reduction) on other users' orders.
+            if (!$payment->order || $payment->order->user_id !== auth()->id()) {
+                return response()->json(['success' => false, 'message' => 'Forbidden'], 403);
+            }
 
             // If already successful, return immediately
             if ($payment->status === 'success') {
@@ -450,8 +481,9 @@ class PaymentController extends Controller
 
             Log::info('Simulating payment callback', $callbackData);
 
-            // Call the callback handler
-            return $this->handleCallback(new Request($callbackData));
+            // Bypass signature verification — simulate is internal and is
+            // already gated by !production and isTestMode() above.
+            return $this->processCallbackData($callbackData);
 
         } catch (\Exception $e) {
             Log::error('Payment simulate error', [
