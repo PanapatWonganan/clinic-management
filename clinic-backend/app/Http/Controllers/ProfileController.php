@@ -12,21 +12,25 @@ class ProfileController extends Controller
     public function show(Request $request)
     {
         $user = $request->user();
-        
+
+        // Return null for unfilled fields rather than placeholder strings —
+        // returning made-up phone numbers / addresses risked the frontend
+        // rendering them as if they were real user data and orders going
+        // to a fake "ลาดพร้าว 15" address.
         return response()->json([
             'success' => true,
             'profile' => [
                 'name' => $user->name,
                 'email' => $user->email,
-                'phone' => $user->phone ?? '081-234-5678',
-                'address' => $user->address ?? '123/45 หมู่ 6 ซอยลาดพร้าว 15 แยก 3\nถนนลาดพร้าว',
-                'district' => $user->district ?? 'จอมพล',
-                'province' => $user->province ?? 'กรุงเทพมหานคร',
-                'postalCode' => $user->postal_code ?? '10900',
+                'phone' => $user->phone,
+                'address' => $user->address,
+                'district' => $user->district,
+                'province' => $user->province,
+                'postalCode' => $user->postal_code,
                 'provinceId' => $user->province_id,
                 'districtId' => $user->district_id,
                 'subDistrictId' => $user->sub_district_id,
-            ]
+            ],
         ]);
     }
 

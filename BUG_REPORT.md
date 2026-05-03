@@ -257,7 +257,7 @@ $upgradeRule = DB::table('membership_upgrade_rules')
 
 ## 🟡 MEDIUM
 
-### [ ] M1. `ProfileController::show` ส่งค่า default placeholder ออกไปเป็นข้อมูลจริง
+### [x] M1. `ProfileController::show` ส่งค่า default placeholder ออกไปเป็นข้อมูลจริง
 **ไฟล์:** `clinic-backend/app/Http/Controllers/ProfileController.php:21-26`
 
 ```php
