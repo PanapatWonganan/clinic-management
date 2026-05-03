@@ -379,20 +379,28 @@ class OrderController extends Controller
     {
         try {
             $user = Auth::user();
-            
+
+            DB::beginTransaction();
+
+            // Lock the order row so that a concurrent payment callback that's
+            // about to flip the same order to "paid" has to wait until our
+            // status update commits. With the race guard in PaymentController
+            // it will then see status=cancelled and bail out instead of
+            // silently decrementing stock.
             $order = Order::with('orderItems.product')
                 ->where('user_id', $user->id)
+                ->lockForUpdate()
                 ->findOrFail($id);
 
             // Can only cancel orders that haven't been paid yet
             if (!in_array($order->status, [Order::STATUS_PENDING_PAYMENT, Order::STATUS_PAYMENT_UPLOADED])) {
+                DB::rollBack();
+
                 return response()->json([
                     'success' => false,
                     'message' => 'Cannot cancel order. Order status is ' . $order->status
                 ], 422);
             }
-
-            DB::beginTransaction();
 
             // Only restore stock if it was already reduced (for paid orders)
             // For pending_payment orders, stock was never reduced, so no need to restore

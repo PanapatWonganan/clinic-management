@@ -160,7 +160,7 @@ GET `/api/payment/status/{paymentId}` ส่ง transaction_id, status, amount, 
 
 ---
 
-### [ ] H4. Cancel order ไม่ใส่ `cancelled_by_user` flag — race กับ admin/payment callback
+### [x] H4. Cancel order ไม่ใส่ `cancelled_by_user` flag — race กับ admin/payment callback
 **ไฟล์:** `clinic-backend/app/Http/Controllers/OrderController.php:381-426`
 
 **ทำไมเป็น bug:**

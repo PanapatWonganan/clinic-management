@@ -221,10 +221,31 @@ class PaymentController extends Controller
 
             // Update payment status based on callback
             if ($status === 'success' || $status === '00') {
+                // Race guard: if the user cancelled while the gateway was still
+                // confirming the charge, do NOT flip the order back to paid —
+                // that path would silently decrement stock for an order that no
+                // longer exists in the user's mind. Mark the payment as success
+                // so the gateway stops retrying, but leave the order cancelled
+                // and log loudly so finance can refund.
+                $order = $payment->order;
+                if ($order && $order->status === Order::STATUS_CANCELLED) {
+                    $payment->markAsSuccess($request->all());
+                    DB::commit();
+                    Log::warning('Payment confirmed for already-cancelled order — needs manual refund', [
+                        'payment_id' => $payment->id,
+                        'order_id' => $order->id,
+                        'order_number' => $order->order_number,
+                    ]);
+
+                    return response()->json([
+                        'success' => true,
+                        'warning' => 'order_cancelled_after_charge',
+                    ]);
+                }
+
                 $payment->markAsSuccess($request->all());
 
                 // Update order status to 'paid' (will trigger stock reduction automatically)
-                $order = $payment->order;
                 $order->update([
                     'payment_status' => 'paid',
                     'status' => Order::STATUS_PAID, // This will trigger stock reduction in Order model
