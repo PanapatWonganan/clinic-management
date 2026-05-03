@@ -555,11 +555,15 @@ class ProfileController extends Controller
             ->whereIn('status', ['confirmed', 'processing', 'shipped', 'delivered'])
             ->sum('total_amount');
 
-        // Check for possible upgrades
+        // Check for possible upgrades — pick the highest-tier rule the user
+        // qualifies for, not whatever DB ordering happens to surface first.
+        // Without orderBy, a whale who clears both 500k and 1M thresholds
+        // could be bumped only one rank.
         $upgradeRule = \DB::table('membership_upgrade_rules')
             ->where('from_type', $user->membership_type)
             ->where('min_spent', '<=', $totalSpent)
             ->where('is_active', true)
+            ->orderByDesc('min_spent')
             ->first();
 
         if ($upgradeRule) {

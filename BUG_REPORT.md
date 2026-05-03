@@ -188,7 +188,7 @@ Validator รับ `payment_method` ใน `cash,transfer,credit_card,qr_code` 
 
 ---
 
-### [ ] H6. Membership upgrade query ไม่มี cap — user มีหลายระดับ skip ได้ทีเดียว
+### [x] H6. Membership upgrade query ไม่มี cap — user มีหลายระดับ skip ได้ทีเดียว
 **ไฟล์:** `clinic-backend/app/Http/Controllers/ProfileController.php:546-574`
 
 **ทำไมเป็น bug:**
