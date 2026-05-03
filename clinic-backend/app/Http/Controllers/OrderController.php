@@ -51,7 +51,12 @@ class OrderController extends Controller
             'items.*.product_id' => 'required|exists:products,id',
             'items.*.quantity' => 'required|integer|min:1',
             'delivery_method' => 'required|in:pickup,delivery',
-            'payment_method' => 'required|in:cash,transfer,credit_card,qr_code',
+            // qr_code is intentionally excluded — there is no downstream
+            // handler for it (createPayment only accepts credit_card; the
+            // slip upload flow accepts cash/transfer/promptpay). Allowing
+            // qr_code here would let an order get stuck in pending_payment
+            // forever. promptpay is the supported QR payment method.
+            'payment_method' => 'required|in:cash,transfer,credit_card,promptpay',
             'delivery_fee' => 'nullable|numeric|min:0',
             'discount' => 'nullable|numeric|min:0',
             'shipping_address_id' => 'nullable|exists:customer_addresses,id',

@@ -175,7 +175,7 @@ GET `/api/payment/status/{paymentId}` ส่ง transaction_id, status, amount, 
 
 ---
 
-### [ ] H5. `OrderController::store` validate `delivery_method` แต่ใช้ `request->payment_method` โดยไม่ map
+### [x] H5. `OrderController::store` validate `delivery_method` แต่ใช้ `request->payment_method` โดยไม่ map
 **ไฟล์:** `clinic-backend/app/Http/Controllers/OrderController.php:54`
 
 **ทำไมเป็น bug:**
