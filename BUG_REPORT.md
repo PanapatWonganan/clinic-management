@@ -219,7 +219,7 @@ $upgradeRule = DB::table('membership_upgrade_rules')
 
 ---
 
-### [ ] H8. PaymentSlip upload — ไม่ revalidate file count ก่อนลบของเก่า
+### [x] H8. PaymentSlip upload — ไม่ revalidate file count ก่อนลบของเก่า
 **ไฟล์:** `clinic-backend/app/Http/Controllers/PaymentSlipController.php:51-70`
 
 **ทำไมเป็น bug:**

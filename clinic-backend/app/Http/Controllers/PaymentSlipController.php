@@ -58,29 +58,24 @@ class PaymentSlipController extends Controller
             ], 422);
         }
 
-        // Delete existing payment slips for this order (replace old slips)
-        $existingSlips = PaymentSlip::where('order_id', $orderId)->get();
-        foreach ($existingSlips as $slip) {
-            // Delete file from storage
-            if (Storage::disk('public')->exists($slip->file_path)) {
-                Storage::disk('public')->delete($slip->file_path);
-            }
-            // Delete database record
-            $slip->delete();
-        }
-
+        // Save the new slips first; only after all of them land successfully
+        // do we delete the old ones. Reverses the previous "delete first then
+        // upload" order, which lost the user's approved slip if the new
+        // upload failed (disk full, transient error, etc.).
         $uploadedSlips = [];
+        $newPaths = [];
 
         foreach ($files as $index => $file) {
             try {
-                // Generate unique filename
                 $extension = $file->getClientOriginalExtension();
-                $filename = 'slip_' . $orderId . '_' . time() . '_' . ($index + 1) . '.' . $extension;
-                
-                // Store file in public/payment_slips directory
+                // Include uniqid so two uploads in the same second produce
+                // distinct filenames; otherwise the new file silently
+                // overwrites the old, and our "delete old" sweep then
+                // deletes the file we just wrote.
+                $filename = 'slip_' . $orderId . '_' . time() . '_' . uniqid() . '_' . ($index + 1) . '.' . $extension;
                 $path = $file->storeAs('payment_slips', $filename, 'public');
+                $newPaths[] = $path;
 
-                // Create database record
                 $slip = PaymentSlip::create([
                     'order_id' => $orderId,
                     'file_name' => $filename,
@@ -92,11 +87,36 @@ class PaymentSlipController extends Controller
                 ]);
 
                 $uploadedSlips[] = $slip;
-
             } catch (\Exception $e) {
-                // If any file fails, we'll still return the successful ones
                 \Log::error('Payment slip upload error: ' . $e->getMessage());
+                // Roll back any new files we managed to write so the order
+                // doesn't end up with half-saved replacements alongside the
+                // (still untouched) originals.
+                foreach ($newPaths as $p) {
+                    if (Storage::disk('public')->exists($p)) {
+                        Storage::disk('public')->delete($p);
+                    }
+                }
+                foreach ($uploadedSlips as $s) {
+                    $s->delete();
+                }
+
+                return response()->json([
+                    'success' => false,
+                    'message' => 'อัปโหลดสลิปไม่สำเร็จ กรุณาลองใหม่อีกครั้ง',
+                ], 500);
             }
+        }
+
+        // All new slips persisted; safe to delete the old ones.
+        $existingSlips = PaymentSlip::where('order_id', $orderId)
+            ->whereNotIn('id', collect($uploadedSlips)->pluck('id')->all())
+            ->get();
+        foreach ($existingSlips as $slip) {
+            if (Storage::disk('public')->exists($slip->file_path)) {
+                Storage::disk('public')->delete($slip->file_path);
+            }
+            $slip->delete();
         }
 
         // Update order status and payment slip status
