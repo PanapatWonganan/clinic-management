@@ -67,7 +67,7 @@ class OrderCancelRaceTest extends TestCase
         ]);
 
         // Build a properly signed callback payload.
-        $svc = new \App\Services\PaySolutionsService();
+        $svc = new \App\Services\PaySolutionsService;
         $payload = [
             'transaction_id' => 'TXN-123',
             'order_id' => $order->order_number,

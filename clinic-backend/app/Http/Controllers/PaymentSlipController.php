@@ -2,12 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\SendTelegramNotification;
+use App\Models\Order;
+use App\Models\PaymentSlip;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
-use App\Models\PaymentSlip;
-use App\Models\Order;
-use App\Jobs\SendTelegramNotification;
 
 class PaymentSlipController extends Controller
 {
@@ -25,36 +25,36 @@ class PaymentSlipController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Validation failed',
-                'errors' => $validator->errors()
+                'errors' => $validator->errors(),
             ], 422);
         }
 
         $orderId = $request->order_id;
-        
+
         // Check if order belongs to authenticated user
         $order = Order::where('id', $orderId)->where('user_id', auth()->id())->first();
-        if (!$order) {
+        if (! $order) {
             return response()->json([
                 'success' => false,
-                'message' => 'Order not found or access denied'
+                'message' => 'Order not found or access denied',
             ], 403);
         }
 
         // Check if order can accept payment slips
-        if (!$order->needsPayment()) {
+        if (! $order->needsPayment()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Order does not need payment or already paid'
+                'message' => 'Order does not need payment or already paid',
             ], 422);
         }
 
         $files = $request->file('files', []);
-        
+
         // Validate file count (max 5)
         if (count($files) > 5) {
             return response()->json([
                 'success' => false,
-                'message' => 'Cannot upload more than 5 payment slips per order'
+                'message' => 'Cannot upload more than 5 payment slips per order',
             ], 422);
         }
 
@@ -72,7 +72,7 @@ class PaymentSlipController extends Controller
                 // distinct filenames; otherwise the new file silently
                 // overwrites the old, and our "delete old" sweep then
                 // deletes the file we just wrote.
-                $filename = 'slip_' . $orderId . '_' . time() . '_' . uniqid() . '_' . ($index + 1) . '.' . $extension;
+                $filename = 'slip_'.$orderId.'_'.time().'_'.uniqid().'_'.($index + 1).'.'.$extension;
                 $path = $file->storeAs('payment_slips', $filename, 'public');
                 $newPaths[] = $path;
 
@@ -83,12 +83,12 @@ class PaymentSlipController extends Controller
                     'original_name' => $file->getClientOriginalName(),
                     'file_size' => $file->getSize(),
                     'mime_type' => $file->getMimeType(),
-                    'status' => 'pending'
+                    'status' => 'pending',
                 ]);
 
                 $uploadedSlips[] = $slip;
             } catch (\Exception $e) {
-                \Log::error('Payment slip upload error: ' . $e->getMessage());
+                \Log::error('Payment slip upload error: '.$e->getMessage());
                 // Roll back any new files we managed to write so the order
                 // doesn't end up with half-saved replacements alongside the
                 // (still untouched) originals.
@@ -122,7 +122,7 @@ class PaymentSlipController extends Controller
         // Update order status and payment slip status
         $order->update([
             'status' => Order::STATUS_PAYMENT_UPLOADED,
-            'payment_slip_status' => 'uploaded'
+            'payment_slip_status' => 'uploaded',
         ]);
 
         // Send Telegram notification for payment slip upload
@@ -134,7 +134,7 @@ class PaymentSlipController extends Controller
             'data' => $uploadedSlips,
             'uploaded_count' => count($uploadedSlips),
             'order_status' => $order->status,
-            'order_status_display' => $order->status_display
+            'order_status_display' => $order->status_display,
         ]);
     }
 
@@ -144,10 +144,10 @@ class PaymentSlipController extends Controller
     public function getSlips(Request $request, $orderId)
     {
         $order = Order::where('id', $orderId)->where('user_id', auth()->id())->first();
-        if (!$order) {
+        if (! $order) {
             return response()->json([
                 'success' => false,
-                'message' => 'Order not found or access denied'
+                'message' => 'Order not found or access denied',
             ], 403);
         }
 
@@ -162,13 +162,13 @@ class PaymentSlipController extends Controller
                     'file_size' => $slip->file_size,
                     'status' => $slip->status,
                     'url' => Storage::url($slip->file_path),
-                    'uploaded_at' => $slip->created_at->format('Y-m-d H:i:s')
+                    'uploaded_at' => $slip->created_at->format('Y-m-d H:i:s'),
                 ];
             });
 
         return response()->json([
             'success' => true,
-            'data' => $slips
+            'data' => $slips,
         ]);
     }
 
@@ -178,19 +178,19 @@ class PaymentSlipController extends Controller
     public function deleteSlip(Request $request, $slipId)
     {
         $slip = PaymentSlip::find($slipId);
-        if (!$slip) {
+        if (! $slip) {
             return response()->json([
                 'success' => false,
-                'message' => 'Payment slip not found'
+                'message' => 'Payment slip not found',
             ], 404);
         }
 
         // Check if the slip belongs to the authenticated user's order
         $order = Order::where('id', $slip->order_id)->where('user_id', auth()->id())->first();
-        if (!$order) {
+        if (! $order) {
             return response()->json([
                 'success' => false,
-                'message' => 'Access denied'
+                'message' => 'Access denied',
             ], 403);
         }
 
@@ -204,7 +204,7 @@ class PaymentSlipController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Payment slip deleted successfully'
+            'message' => 'Payment slip deleted successfully',
         ]);
     }
 

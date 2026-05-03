@@ -68,7 +68,7 @@ class CustomerAddress extends Model
     {
         // Remove default from all addresses for this user
         static::where('user_id', $userId)->update(['is_default' => false]);
-        
+
         // Set the specified address as default
         static::where('id', $addressId)->where('user_id', $userId)->update(['is_default' => true]);
     }
@@ -77,7 +77,7 @@ class CustomerAddress extends Model
     {
         // Remove default from all existing addresses
         static::where('user_id', $userId)->update(['is_default' => false]);
-        
+
         // Create new default address
         return static::create(array_merge($addressData, [
             'user_id' => $userId,

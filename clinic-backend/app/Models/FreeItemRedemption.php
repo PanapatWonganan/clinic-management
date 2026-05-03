@@ -33,10 +33,15 @@ class FreeItemRedemption extends Model
 
     // Status constants
     const STATUS_PENDING = 'pending';
+
     const STATUS_APPROVED = 'approved';
+
     const STATUS_PREPARING = 'preparing';
+
     const STATUS_SHIPPED = 'shipped';
+
     const STATUS_DELIVERED = 'delivered';
+
     const STATUS_CANCELLED = 'cancelled';
 
     /**
@@ -92,7 +97,7 @@ class FreeItemRedemption extends Model
      */
     public function getStatusLabelAttribute()
     {
-        return match($this->status) {
+        return match ($this->status) {
             self::STATUS_PENDING => 'รอดำเนินการ',
             self::STATUS_APPROVED => 'อนุมัติแล้ว',
             self::STATUS_PREPARING => 'กำลังจัดเตรียม',

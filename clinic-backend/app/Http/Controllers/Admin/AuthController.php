@@ -21,14 +21,16 @@ class AuthController extends Controller
             $user = Auth::user();
 
             // ตรวจสอบว่าเป็น admin หรือไม่
-            if (!$user->is_admin) {
+            if (! $user->is_admin) {
                 Auth::logout();
+
                 return back()->withErrors([
                     'email' => 'คุณไม่มีสิทธิ์เข้าถึงระบบหลังบ้าน',
                 ])->onlyInput('email');
             }
 
             $request->session()->regenerate();
+
             return redirect()->intended(route('admin.dashboard'));
         }
 
@@ -42,28 +44,29 @@ class AuthController extends Controller
         Auth::logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();
+
         return redirect()->route('admin.login');
     }
-    
+
     public function export(Request $request)
     {
         $type = $request->get('type', 'orders');
         $format = $request->get('format', 'csv');
-        
+
         try {
             $data = $this->getExportData($type);
-            $filename = $type . '_report_' . date('Y-m-d') . '.' . $format;
-            
+            $filename = $type.'_report_'.date('Y-m-d').'.'.$format;
+
             if ($format === 'csv') {
                 return $this->exportAsCsv($data, $filename, $type);
             } else {
                 return $this->exportAsJson($data, $filename);
             }
         } catch (\Exception $e) {
-            return response()->json(['error' => 'ไม่สามารถส่งออกข้อมูลได้: ' . $e->getMessage()], 500);
+            return response()->json(['error' => 'ไม่สามารถส่งออกข้อมูลได้: '.$e->getMessage()], 500);
         }
     }
-    
+
     private function getExportData($type)
     {
         switch ($type) {
@@ -83,7 +86,7 @@ class AuthController extends Controller
                             'items_count' => $order->orderItems->count(),
                         ];
                     });
-                    
+
             case 'customers':
                 return \App\Models\User::orderBy('created_at', 'desc')
                     ->get()
@@ -92,7 +95,7 @@ class AuthController extends Controller
                         $totalSpent = \App\Models\Order::where('user_id', $user->id)
                             ->where('status', '!=', 'cancelled')
                             ->sum('total_amount');
-                            
+
                         return [
                             'name' => $user->name,
                             'email' => $user->email,
@@ -106,7 +109,7 @@ class AuthController extends Controller
                             'registered_at' => $user->created_at->format('Y-m-d H:i:s'),
                         ];
                     });
-                    
+
             case 'products':
                 return \App\Models\Product::orderBy('name')
                     ->get()
@@ -115,7 +118,7 @@ class AuthController extends Controller
                             ->sum('quantity');
                         $totalRevenue = \App\Models\OrderItem::where('product_id', $product->id)
                             ->sum('total_price');
-                            
+
                         return [
                             'name' => $product->name,
                             'description' => $product->description ?? 'N/A',
@@ -129,7 +132,7 @@ class AuthController extends Controller
                             'created_at' => $product->created_at->format('Y-m-d H:i:s'),
                         ];
                     });
-                    
+
             case 'revenue':
                 // รายงานรายได้รายวัน 30 วันล่าสุด
                 $revenueData = [];
@@ -141,7 +144,7 @@ class AuthController extends Controller
                     $dailyOrders = \App\Models\Order::whereDate('created_at', $date)
                         ->where('status', '!=', 'cancelled')
                         ->count();
-                        
+
                     $revenueData[] = [
                         'date' => $date->format('Y-m-d'),
                         'day_name' => $date->format('l'),
@@ -150,52 +153,53 @@ class AuthController extends Controller
                         'average_order_value' => $dailyOrders > 0 ? round($dailyRevenue / $dailyOrders, 2) : 0,
                     ];
                 }
+
                 return collect($revenueData);
-                
+
             default:
                 throw new \Exception('ประเภทข้อมูลไม่ถูกต้อง');
         }
     }
-    
+
     private function exportAsCsv($data, $filename, $type)
     {
         $headers = [
             'Content-Type' => 'text/csv; charset=UTF-8',
-            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
             'Pragma' => 'no-cache',
             'Cache-Control' => 'must-revalidate, post-check=0, pre-check=0',
             'Expires' => '0',
         ];
-        
-        $callback = function() use ($data, $type) {
+
+        $callback = function () use ($data) {
             $file = fopen('php://output', 'w');
-            
+
             // Add BOM for UTF-8
             fprintf($file, chr(0xEF).chr(0xBB).chr(0xBF));
-            
+
             // Add headers based on type
             if ($data->isNotEmpty()) {
                 fputcsv($file, array_keys($data->first()));
             }
-            
+
             // Add data rows
             foreach ($data as $row) {
                 fputcsv($file, array_values($row));
             }
-            
+
             fclose($file);
         };
-        
+
         return response()->stream($callback, 200, $headers);
     }
-    
+
     private function exportAsJson($data, $filename)
     {
         $headers = [
             'Content-Type' => 'application/json; charset=UTF-8',
-            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
         ];
-        
+
         return response()->json([
             'data' => $data,
             'exported_at' => now()->format('Y-m-d H:i:s'),

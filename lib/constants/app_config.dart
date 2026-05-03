@@ -26,19 +26,21 @@ class AppConfig {
     }
   }
 
-  // Thai Address Service Base URL
+  // Thai Address Service Base URL — `api/address` is the canonical path;
+  // the backend also still serves `test/address` as an alias for older
+  // shipped clients but new builds should use the api/ path.
   static String get thaiAddressApiUrl {
     if (isProduction) {
-      return 'https://api.exquillermember.com/test/address';
+      return 'https://api.exquillermember.com/api/address';
     }
 
     // Development environment
     if (kIsWeb) {
-      return 'http://127.0.0.1:8000/test/address';
+      return 'http://127.0.0.1:8000/api/address';
     } else if (Platform.isAndroid) {
-      return 'http://10.0.2.2:8000/test/address';
+      return 'http://10.0.2.2:8000/api/address';
     } else {
-      return 'http://127.0.0.1:8000/test/address';
+      return 'http://127.0.0.1:8000/api/address';
     }
   }
 

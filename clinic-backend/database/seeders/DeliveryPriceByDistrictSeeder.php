@@ -2,9 +2,8 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
-use Illuminate\Database\Seeder;
 use App\Models\DeliveryPriceByDistrict;
+use Illuminate\Database\Seeder;
 
 class DeliveryPriceByDistrictSeeder extends Seeder
 {
@@ -22,8 +21,8 @@ class DeliveryPriceByDistrictSeeder extends Seeder
             ['province_name' => 'สมุทรปราการ', 'district_name' => 'พระประแดง', 'grab_motorcycle_price' => 237, 'grab_car_price' => 356, 'lalamove_motorcycle_price' => 205, 'lalamove_car_price' => 305],
             ['province_name' => 'สมุทรปราการ', 'district_name' => 'พระสมุทรเจดีย์', 'grab_motorcycle_price' => 463, 'grab_car_price' => 491, 'lalamove_motorcycle_price' => 377, 'lalamove_car_price' => 382],
             ['province_name' => 'สมุทรปราการ', 'district_name' => 'บางเสาธง', 'grab_motorcycle_price' => 334, 'grab_car_price' => 461, 'lalamove_motorcycle_price' => 275, 'lalamove_car_price' => 309],
-            
-            // ปทุมธานี  
+
+            // ปทุมธานี
             ['province_name' => 'ปทุมธานี', 'district_name' => 'เมืองปทุมธานี', 'grab_motorcycle_price' => 497, 'grab_car_price' => 590, 'lalamove_motorcycle_price' => 340, 'lalamove_car_price' => 382],
             ['province_name' => 'ปทุมธานี', 'district_name' => 'สามโคก', 'grab_motorcycle_price' => 552, 'grab_car_price' => 606, 'lalamove_motorcycle_price' => 637, 'lalamove_car_price' => 463],
             ['province_name' => 'ปทุมธานี', 'district_name' => 'ลาดหลุมแก้ว', 'grab_motorcycle_price' => 623, 'grab_car_price' => 703, 'lalamove_motorcycle_price' => 596, 'lalamove_car_price' => 484],
@@ -31,7 +30,7 @@ class DeliveryPriceByDistrictSeeder extends Seeder
             ['province_name' => 'ปทุมธานี', 'district_name' => 'ลำลูกกา', 'grab_motorcycle_price' => 283, 'grab_car_price' => 466, 'lalamove_motorcycle_price' => 306, 'lalamove_car_price' => 343],
             ['province_name' => 'ปทุมธานี', 'district_name' => 'ธัญบุรี', 'grab_motorcycle_price' => 418, 'grab_car_price' => 524, 'lalamove_motorcycle_price' => 331, 'lalamove_car_price' => 345],
             ['province_name' => 'ปทุมธานี', 'district_name' => 'หนองเสือ', 'grab_motorcycle_price' => 677, 'grab_car_price' => 729, 'lalamove_motorcycle_price' => 654, 'lalamove_car_price' => 517],
-            
+
             // นนทบุรี
             ['province_name' => 'นนทบุรี', 'district_name' => 'เมืองนนทบุรี', 'grab_motorcycle_price' => 226, 'grab_car_price' => 382, 'lalamove_motorcycle_price' => 207, 'lalamove_car_price' => 279],
             ['province_name' => 'นนทบุรี', 'district_name' => 'ปากเกร็ด', 'grab_motorcycle_price' => 269, 'grab_car_price' => 433, 'lalamove_motorcycle_price' => 245, 'lalamove_car_price' => 309],

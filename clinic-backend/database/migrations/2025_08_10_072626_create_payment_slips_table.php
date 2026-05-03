@@ -24,7 +24,7 @@ return new class extends Migration
             $table->timestamp('reviewed_at')->nullable(); // When reviewed
             $table->foreignId('reviewed_by')->nullable()->constrained('users'); // Admin who reviewed
             $table->timestamps();
-            
+
             $table->index(['order_id', 'status']);
             $table->index('status');
             $table->index('created_at');

@@ -2,15 +2,17 @@
 
 namespace App\Services;
 
-use Illuminate\Support\Facades\Http;
 use App\Models\Order;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 class TelegramService
 {
     private $botToken;
+
     private $chatId;
+
     private $apiUrl;
 
     public function __construct()
@@ -25,13 +27,14 @@ class TelegramService
      */
     public function sendNewOrderNotification(Order $order)
     {
-        if (!$this->isConfigured()) {
+        if (! $this->isConfigured()) {
             Log::warning('Telegram not configured, skipping notification');
+
             return false;
         }
 
         $message = $this->formatNewOrderMessage($order);
-        
+
         return $this->sendMessage($message);
     }
 
@@ -40,12 +43,12 @@ class TelegramService
      */
     public function sendStatusUpdateNotification(Order $order, $oldStatus, $newStatus)
     {
-        if (!$this->isConfigured()) {
+        if (! $this->isConfigured()) {
             return false;
         }
 
         $message = $this->formatStatusUpdateMessage($order, $oldStatus, $newStatus);
-        
+
         return $this->sendMessage($message);
     }
 
@@ -54,7 +57,7 @@ class TelegramService
      */
     public function sendPaymentSlipNotification(Order $order)
     {
-        if (!$this->isConfigured()) {
+        if (! $this->isConfigured()) {
             return false;
         }
 
@@ -68,7 +71,7 @@ class TelegramService
      */
     public function sendPaymentSuccessNotification(Order $order)
     {
-        if (!$this->isConfigured()) {
+        if (! $this->isConfigured()) {
             return false;
         }
 
@@ -84,9 +87,10 @@ class TelegramService
     {
         try {
             $targetChatId = $chatId ?: $this->chatId;
-            
-            if (!$targetChatId) {
+
+            if (! $targetChatId) {
                 Log::error('No Telegram chat ID configured');
+
                 return false;
             }
 
@@ -102,18 +106,21 @@ class TelegramService
                 $data = $response->json();
                 Log::info('Telegram message sent successfully', [
                     'message_id' => $data['result']['message_id'] ?? null,
-                    'chat_id' => $targetChatId
+                    'chat_id' => $targetChatId,
                 ]);
+
                 return true;
             } else {
                 Log::error('Telegram API error', [
                     'status' => $response->status(),
-                    'body' => $response->body()
+                    'body' => $response->body(),
                 ]);
+
                 return false;
             }
         } catch (\Exception $e) {
-            Log::error('Telegram service error: ' . $e->getMessage());
+            Log::error('Telegram service error: '.$e->getMessage());
+
             return false;
         }
     }
@@ -126,7 +133,7 @@ class TelegramService
         $user = $order->user;
         $items = $order->orderItems;
         $itemCount = $items->count();
-        
+
         // สร้างรายการสินค้า
         $itemsList = '';
         foreach ($items->take(3) as $item) {
@@ -134,7 +141,7 @@ class TelegramService
             $quantity = $item->quantity;
             $unitPrice = number_format($item->unit_price, 0);
             $totalPrice = number_format($item->total_price, 0);
-            
+
             $itemsList .= "• <b>{$itemName}</b>\n";
             $itemsList .= "  จำนวน {$quantity} x ฿{$unitPrice} = <b>฿{$totalPrice}</b>\n";
         }
@@ -151,18 +158,18 @@ class TelegramService
             $message .= " ({$user->phone})";
         }
         $message .= "\n";
-        $message .= "💰 <b>฿" . number_format($order->total_amount, 0) . "</b> ({$itemCount} รายการ)\n\n";
-        
+        $message .= '💰 <b>฿'.number_format($order->total_amount, 0)."</b> ({$itemCount} รายการ)\n\n";
+
         $message .= "📦 <b>สินค้า:</b>\n{$itemsList}\n";
-        
+
         // ที่อยู่จัดส่ง
         if ($order->shippingAddress) {
             $address = $order->shippingAddress;
             $message .= "📍 <b>ที่อยู่:</b> {$address->district}, {$address->province}\n";
         }
-        
-        $message .= "⏰ " . Carbon::parse($order->created_at)->locale('th')->isoFormat('DD MMM YYYY - HH:mm') . "\n";
-        $message .= "🔗 <a href='" . config('app.url') . "/admin/orders/{$order->id}'>ดูรายละเอียด</a>";
+
+        $message .= '⏰ '.Carbon::parse($order->created_at)->locale('th')->isoFormat('DD MMM YYYY - HH:mm')."\n";
+        $message .= "🔗 <a href='".config('app.url')."/admin/orders/{$order->id}'>ดูรายละเอียด</a>";
 
         return $message;
     }
@@ -176,11 +183,11 @@ class TelegramService
             'pending_payment' => '⏳',
             'payment_uploaded' => '📄',
             'paid' => '💰',
-            'confirmed' => '✅', 
+            'confirmed' => '✅',
             'processing' => '🔄',
             'shipped' => '🚚',
             'delivered' => '📦',
-            'cancelled' => '❌'
+            'cancelled' => '❌',
         ];
 
         $statusText = [
@@ -191,7 +198,7 @@ class TelegramService
             'processing' => 'กำลังเตรียม',
             'shipped' => 'จัดส่งแล้ว',
             'delivered' => 'ส่งถึงแล้ว',
-            'cancelled' => 'ยกเลิก'
+            'cancelled' => 'ยกเลิก',
         ];
 
         $message = "🔄 <b>อัปเดตสถานะคำสั่งซื้อ</b>\n";
@@ -202,8 +209,8 @@ class TelegramService
         $newStatusText = $statusText[$newStatus] ?? $newStatus;
         $message .= "📈 {$oldStatusText} → <b>{$newStatusEmoji} {$newStatusText}</b>\n";
         $message .= "👤 {$order->user->name}\n";
-        $message .= "💰 <b>฿" . number_format($order->total_amount, 0) . "</b>\n";
-        
+        $message .= '💰 <b>฿'.number_format($order->total_amount, 0)."</b>\n";
+
         // แสดงสินค้าแรก
         if ($order->orderItems->count() > 0) {
             $firstItem = $order->orderItems->first();
@@ -214,9 +221,9 @@ class TelegramService
             }
             $message .= "\n";
         }
-        
-        $message .= "⏰ " . Carbon::now()->locale('th')->diffForHumans() . "\n";
-        $message .= "🔗 <a href='" . config('app.url') . "/admin/orders/{$order->id}'>ดูรายละเอียด</a>";
+
+        $message .= '⏰ '.Carbon::now()->locale('th')->diffForHumans()."\n";
+        $message .= "🔗 <a href='".config('app.url')."/admin/orders/{$order->id}'>ดูรายละเอียด</a>";
 
         return $message;
     }
@@ -230,7 +237,7 @@ class TelegramService
         $message .= "━━━━━━━━━━━━━━━━━━━━\n";
         $message .= "📋 <b>#{$order->order_number}</b>\n";
         $message .= "👤 {$order->user->name}\n";
-        $message .= "💰 <b>฿" . number_format($order->total_amount, 0) . "</b>\n";
+        $message .= '💰 <b>฿'.number_format($order->total_amount, 0)."</b>\n";
 
         // แสดงสินค้าแรก
         if ($order->orderItems->count() > 0) {
@@ -243,8 +250,8 @@ class TelegramService
             $message .= "\n";
         }
 
-        $message .= "⏰ " . Carbon::now()->locale('th')->diffForHumans() . "\n";
-        $message .= "🔗 <a href='" . config('app.url') . "/admin/orders/{$order->id}'>ตรวจสอบสลิป</a>";
+        $message .= '⏰ '.Carbon::now()->locale('th')->diffForHumans()."\n";
+        $message .= "🔗 <a href='".config('app.url')."/admin/orders/{$order->id}'>ตรวจสอบสลิป</a>";
 
         return $message;
     }
@@ -260,7 +267,7 @@ class TelegramService
         $message .= "━━━━━━━━━━━━━━━━━━━━\n";
         $message .= "📋 <b>#{$order->order_number}</b>\n";
         $message .= "👤 {$order->user->name}\n";
-        $message .= "💰 <b>฿" . number_format($order->total_amount, 0) . "</b>\n";
+        $message .= '💰 <b>฿'.number_format($order->total_amount, 0)."</b>\n";
         $message .= "💳 <b>ชำระผ่าน:</b> Credit Card (Payment Gateway)\n";
 
         // แสดง Transaction ID ถ้ามี
@@ -279,8 +286,8 @@ class TelegramService
             $message .= "\n";
         }
 
-        $message .= "⏰ " . Carbon::now()->locale('th')->diffForHumans() . "\n";
-        $message .= "🔗 <a href='" . config('app.url') . "/admin/orders/{$order->id}'>ดูรายละเอียด</a>";
+        $message .= '⏰ '.Carbon::now()->locale('th')->diffForHumans()."\n";
+        $message .= "🔗 <a href='".config('app.url')."/admin/orders/{$order->id}'>ดูรายละเอียด</a>";
 
         return $message;
     }
@@ -290,7 +297,7 @@ class TelegramService
      */
     private function isConfigured()
     {
-        return !empty($this->botToken) && !empty($this->chatId);
+        return ! empty($this->botToken) && ! empty($this->chatId);
     }
 
     /**
@@ -298,10 +305,10 @@ class TelegramService
      */
     public function testConnection()
     {
-        if (!$this->isConfigured()) {
+        if (! $this->isConfigured()) {
             return [
                 'success' => false,
-                'message' => 'Telegram bot not configured'
+                'message' => 'Telegram bot not configured',
             ];
         }
 
@@ -309,18 +316,18 @@ class TelegramService
             $testMessage = "🧪 <b>ทดสอบระบบแจ้งเตือน</b>\n";
             $testMessage .= "━━━━━━━━━━━━━━━━━━━━\n";
             $testMessage .= "✅ การเชื่อมต่อ Telegram Bot ทำงานปกติ\n";
-            $testMessage .= "🕐 " . Carbon::now()->locale('th')->isoFormat('DD MMM YYYY - HH:mm:ss');
+            $testMessage .= '🕐 '.Carbon::now()->locale('th')->isoFormat('DD MMM YYYY - HH:mm:ss');
 
             $success = $this->sendMessage($testMessage);
 
             return [
                 'success' => $success,
-                'message' => $success ? 'Test message sent successfully' : 'Failed to send test message'
+                'message' => $success ? 'Test message sent successfully' : 'Failed to send test message',
             ];
         } catch (\Exception $e) {
             return [
                 'success' => false,
-                'message' => 'Test failed: ' . $e->getMessage()
+                'message' => 'Test failed: '.$e->getMessage(),
             ];
         }
     }
@@ -337,10 +344,11 @@ class TelegramService
             if ($response->successful()) {
                 return $response->json()['result'] ?? null;
             }
-            
+
             return null;
         } catch (\Exception $e) {
-            Log::error('Failed to get bot info: ' . $e->getMessage());
+            Log::error('Failed to get bot info: '.$e->getMessage());
+
             return null;
         }
     }

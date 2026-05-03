@@ -19,7 +19,7 @@ class IsAdmin
         // (sanctum bearer for API, web session for Blade admin).
         $user = $request->user();
 
-        if (!$user || !$user->is_admin) {
+        if (! $user || ! $user->is_admin) {
             if ($request->expectsJson() || $request->is('api/*')) {
                 return response()->json([
                     'message' => 'คุณไม่มีสิทธิ์เข้าถึงระบบหลังบ้าน',

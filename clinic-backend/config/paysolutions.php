@@ -25,9 +25,9 @@ return [
     'payment_url' => env('PAYSOLUTIONS_PAYMENT_URL', 'https://www.thaiepay.com/epaylink/payment.aspx'),
 
     // Callback URLs
-    'callback_url' => env('PAYSOLUTIONS_CALLBACK_URL', env('APP_URL') . '/api/payment/callback'),
-    'return_url' => env('PAYSOLUTIONS_RETURN_URL', env('APP_URL') . '/payment/success'),
-    'cancel_url' => env('PAYSOLUTIONS_CANCEL_URL', env('APP_URL') . '/payment/cancel'),
+    'callback_url' => env('PAYSOLUTIONS_CALLBACK_URL', env('APP_URL').'/api/payment/callback'),
+    'return_url' => env('PAYSOLUTIONS_RETURN_URL', env('APP_URL').'/payment/success'),
+    'cancel_url' => env('PAYSOLUTIONS_CANCEL_URL', env('APP_URL').'/payment/cancel'),
 
     // Payment Settings
     'currency' => env('PAYSOLUTIONS_CURRENCY', 'THB'),

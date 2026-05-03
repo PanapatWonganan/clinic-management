@@ -2,8 +2,8 @@
 
 namespace App\Services;
 
-use App\Models\User;
 use App\Models\MembershipBundleDeal;
+use App\Models\User;
 use App\Models\UserClaimedReward;
 
 class MembershipProgressService
@@ -18,7 +18,7 @@ class MembershipProgressService
      */
     public static function cachedBundleDealsForRole(int $roleId)
     {
-        if (!isset(self::$bundleDealsCache[$roleId])) {
+        if (! isset(self::$bundleDealsCache[$roleId])) {
             self::$bundleDealsCache[$roleId] = MembershipBundleDeal::where('is_active', true)
                 ->where('role_id', $roleId)
                 ->orderBy('level')
@@ -40,14 +40,14 @@ class MembershipProgressService
         if ($user->relationLoaded('orders')) {
             $completedOrders = $user->orders->filter(function ($o) use ($countableStatuses) {
                 return in_array($o->status, $countableStatuses, true)
-                    && (!$o->is_free_item_order);
+                    && (! $o->is_free_item_order);
             })->values();
         } else {
             $completedOrders = $user->orders()
                 ->whereIn('status', $countableStatuses)
                 ->where(function ($query) {
                     $query->where('is_free_item_order', false)
-                          ->orWhereNull('is_free_item_order');
+                        ->orWhereNull('is_free_item_order');
                 })
                 ->with('orderItems')
                 ->get();
@@ -147,7 +147,7 @@ class MembershipProgressService
                 'savings_amount' => $canClaim ? $deal->savings_amount : 0,
                 'unit_price' => $deal->unit_price,
                 'effective_price' => $deal->effective_price_per_unit,
-                'remaining_for_next' => $remainingForNext
+                'remaining_for_next' => $remainingForNext,
             ];
 
             if ($canClaim) {
@@ -172,7 +172,7 @@ class MembershipProgressService
             'next_milestone' => $this->getNextMilestone($effectiveQuantity, $bundleDeals),
             'available_rewards' => $availableRewards,
             'has_claimed_before' => $hasClaimedAnyReward,
-            'last_claim_date' => $hasClaimedAnyReward ? $claimedRewards->sortByDesc('created_at')->first()->created_at->toISOString() : null
+            'last_claim_date' => $hasClaimedAnyReward ? $claimedRewards->sortByDesc('created_at')->first()->created_at->toISOString() : null,
         ];
     }
 
@@ -192,7 +192,7 @@ class MembershipProgressService
                     'savings_amount' => floatval($level['savings_amount']),
                     'unit_price' => floatval($level['unit_price']),
                     'display_name' => $level['display_name'],
-                    'completed_bundles' => intval($level['completed_bundles'])
+                    'completed_bundles' => intval($level['completed_bundles']),
                 ];
             }
         }
@@ -211,12 +211,13 @@ class MembershipProgressService
 
             if ($nextMilestoneQuantity > $currentQuantity) {
                 $remaining = $nextMilestoneQuantity - $currentQuantity;
+
                 return [
                     'level' => $deal->level,
                     'target_quantity' => $nextMilestoneQuantity,
                     'remaining' => $remaining,
                     'free_quantity' => $deal->free_quantity,
-                    'savings_amount' => $deal->savings_amount
+                    'savings_amount' => $deal->savings_amount,
                 ];
             }
         }

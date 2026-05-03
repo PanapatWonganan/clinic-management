@@ -235,7 +235,7 @@ class _RedeemFreeItemsScreenState extends State<RedeemFreeItemsScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
+              color: Colors.white.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(16),
             ),
             child: Row(
@@ -309,7 +309,7 @@ class _RedeemFreeItemsScreenState extends State<RedeemFreeItemsScreen> {
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
+            color: Colors.grey.withValues(alpha: 0.1),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -462,7 +462,7 @@ class _RedeemFreeItemsScreenState extends State<RedeemFreeItemsScreen> {
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(4),
-                border: Border.all(color: AppColors.mainPink.withOpacity(0.3)),
+                border: Border.all(color: AppColors.mainPink.withValues(alpha: 0.3)),
               ),
               alignment: Alignment.center,
               child: Text(
@@ -502,7 +502,7 @@ class _RedeemFreeItemsScreenState extends State<RedeemFreeItemsScreen> {
         color: Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
+            color: Colors.grey.withValues(alpha: 0.1),
             blurRadius: 10,
             offset: const Offset(0, -2),
           ),

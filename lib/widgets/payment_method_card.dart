@@ -62,11 +62,11 @@ class _PaymentMethodCardState extends State<PaymentMethodCard> {
               border: Border.all(
                 color: isSelected
                     ? AppColors.mainPurple
-                    : AppColors.lightGray.withOpacity(0.3),
+                    : AppColors.lightGray.withValues(alpha: 0.3),
                 width: isSelected ? 2 : 1,
               ),
               color: isSelected
-                  ? AppColors.mainPurple.withOpacity(0.05)
+                  ? AppColors.mainPurple.withValues(alpha: 0.05)
                   : Colors.white,
             ),
             child: Column(
@@ -79,8 +79,8 @@ class _PaymentMethodCardState extends State<PaymentMethodCard> {
                       height: 40,
                       decoration: BoxDecoration(
                         color: isSelected
-                            ? AppColors.mainPurple.withOpacity(0.1)
-                            : AppColors.lightGray.withOpacity(0.1),
+                            ? AppColors.mainPurple.withValues(alpha: 0.1)
+                            : AppColors.lightGray.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Icon(
@@ -132,7 +132,7 @@ class _PaymentMethodCardState extends State<PaymentMethodCard> {
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(
-                        color: AppColors.lightGray.withOpacity(0.2),
+                        color: AppColors.lightGray.withValues(alpha: 0.2),
                         width: 1,
                       ),
                     ),
@@ -169,7 +169,7 @@ class _PaymentMethodCardState extends State<PaymentMethodCard> {
               width: 48,
               height: 48,
               decoration: BoxDecoration(
-                color: AppColors.mainPurple.withOpacity(0.1),
+                color: AppColors.mainPurple.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(24),
               ),
               child: const Icon(
@@ -208,7 +208,7 @@ class _PaymentMethodCardState extends State<PaymentMethodCard> {
         // Divider
         Container(
           height: 1,
-          color: AppColors.lightGray.withOpacity(0.2),
+          color: AppColors.lightGray.withValues(alpha: 0.2),
         ),
 
         const SizedBox(height: 20),
@@ -253,10 +253,10 @@ class _PaymentMethodCardState extends State<PaymentMethodCard> {
         Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: AppColors.lightPurple.withOpacity(0.1),
+            color: AppColors.lightPurple.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(8),
             border: Border.all(
-              color: AppColors.mainPurple.withOpacity(0.2),
+              color: AppColors.mainPurple.withValues(alpha: 0.2),
               width: 1,
             ),
           ),
@@ -294,7 +294,7 @@ class _PaymentMethodCardState extends State<PaymentMethodCard> {
           width: 36,
           height: 36,
           decoration: BoxDecoration(
-            color: AppColors.mainPurple.withOpacity(0.1),
+            color: AppColors.mainPurple.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Icon(
@@ -349,7 +349,7 @@ class _PaymentMethodCardState extends State<PaymentMethodCard> {
             color: Colors.white,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: AppColors.lightGray.withOpacity(0.3),
+              color: AppColors.lightGray.withValues(alpha: 0.3),
               width: 1,
             ),
           ),
@@ -432,10 +432,10 @@ class _PaymentMethodCardState extends State<PaymentMethodCard> {
             width: double.infinity,
             height: 100,
             decoration: BoxDecoration(
-              color: AppColors.lightPurple.withOpacity(0.3),
+              color: AppColors.lightPurple.withValues(alpha: 0.3),
               borderRadius: BorderRadius.circular(8),
               border: Border.all(
-                color: AppColors.mainPurple.withOpacity(0.3),
+                color: AppColors.mainPurple.withValues(alpha: 0.3),
                 width: 1,
                 style: BorderStyle.solid,
               ),
@@ -501,7 +501,7 @@ class _PaymentMethodCardState extends State<PaymentMethodCard> {
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(
-                      color: AppColors.lightGray.withOpacity(0.3),
+                      color: AppColors.lightGray.withValues(alpha: 0.3),
                       width: 1,
                     ),
                   ),
@@ -559,7 +559,7 @@ class _PaymentMethodCardState extends State<PaymentMethodCard> {
         Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: AppColors.lightPurple.withOpacity(0.3),
+            color: AppColors.lightPurple.withValues(alpha: 0.3),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Column(
@@ -613,7 +613,7 @@ class _PaymentMethodCardState extends State<PaymentMethodCard> {
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: AppColors.lightGray.withOpacity(0.5),
+                  color: AppColors.lightGray.withValues(alpha: 0.5),
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -685,10 +685,10 @@ class _PaymentMethodCardState extends State<PaymentMethodCard> {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: AppColors.lightPurple.withOpacity(0.1),
+          color: AppColors.lightPurple.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: AppColors.lightGray.withOpacity(0.3),
+            color: AppColors.lightGray.withValues(alpha: 0.3),
           ),
         ),
         child: Column(
@@ -697,7 +697,7 @@ class _PaymentMethodCardState extends State<PaymentMethodCard> {
               width: 48,
               height: 48,
               decoration: BoxDecoration(
-                color: AppColors.mainPurple.withOpacity(0.1),
+                color: AppColors.mainPurple.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(24),
               ),
               child: Icon(

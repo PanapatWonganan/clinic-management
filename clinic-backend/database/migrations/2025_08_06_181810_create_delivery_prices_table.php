@@ -19,7 +19,7 @@ return new class extends Migration
             $table->decimal('lalamove_motorcycle_price', 8, 2); // ราคา Lalamove มอเตอร์ไซค์
             $table->decimal('lalamove_car_price', 8, 2); // ราคา Lalamove รถยนต์
             $table->timestamps();
-            
+
             // Add index for faster searching by district name
             $table->index('district_name');
         });

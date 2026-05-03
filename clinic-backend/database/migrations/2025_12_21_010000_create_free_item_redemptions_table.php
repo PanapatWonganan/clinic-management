@@ -23,7 +23,7 @@ return new class extends Migration
             $table->unsignedBigInteger('product_id');        // สินค้าที่เลือก
             $table->integer('quantity');                      // จำนวนที่แลก
             $table->enum('status', ['pending', 'approved', 'preparing', 'shipped', 'delivered', 'cancelled'])
-                  ->default('pending');
+                ->default('pending');
             $table->unsignedBigInteger('shipping_address_id')->nullable(); // ที่อยู่จัดส่ง
             $table->string('tracking_number')->nullable();    // เลข tracking
             $table->text('notes')->nullable();                // หมายเหตุ

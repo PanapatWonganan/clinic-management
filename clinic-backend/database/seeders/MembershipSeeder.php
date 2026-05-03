@@ -2,9 +2,8 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
-use Illuminate\Database\Seeder;
 use App\Models\User;
+use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 
 class MembershipSeeder extends Seeder
@@ -26,7 +25,7 @@ class MembershipSeeder extends Seeder
                 'address' => '123 ถนนสุขุมวิท แขวงคลองเตย',
                 'district' => 'คลองเตย',
                 'province' => 'กรุงเทพฯ',
-                'postal_code' => '10110'
+                'postal_code' => '10110',
             ],
             [
                 'name' => 'นพ. วิทยา เก่งมาก',
@@ -36,7 +35,7 @@ class MembershipSeeder extends Seeder
                 'address' => '456 ถนนพหลโยธิน แขวงจตุจักร',
                 'district' => 'จตุจักร',
                 'province' => 'กรุงเทพฯ',
-                'postal_code' => '10900'
+                'postal_code' => '10900',
             ],
             [
                 'name' => 'คุณ สุดารา รำรวย',
@@ -46,7 +45,7 @@ class MembershipSeeder extends Seeder
                 'address' => '789 ถนนสีลม แขวงสีลม',
                 'district' => 'บางรัก',
                 'province' => 'กรุงเทพฯ',
-                'postal_code' => '10500'
+                'postal_code' => '10500',
             ],
             [
                 'name' => 'คุณ วีรพล ไฮโซ',
@@ -56,7 +55,7 @@ class MembershipSeeder extends Seeder
                 'address' => '101 ถนนวิทยุ แขวงลุมพินี',
                 'district' => 'ปทุมวัน',
                 'province' => 'กรุงเทพฯ',
-                'postal_code' => '10330'
+                'postal_code' => '10330',
             ],
             // Additional test users
             [
@@ -67,7 +66,7 @@ class MembershipSeeder extends Seeder
                 'address' => '202 ถนนรามคำแหง แขวงหัวหมาก',
                 'district' => 'บางกะปิ',
                 'province' => 'กรุงเทพฯ',
-                'postal_code' => '10240'
+                'postal_code' => '10240',
             ],
             [
                 'name' => 'นพ. ศรีสุข เก่งคลินิก',
@@ -77,8 +76,8 @@ class MembershipSeeder extends Seeder
                 'address' => '303 ถนนประชาชื่น แขวงบางซื่อ',
                 'district' => 'บางซื่อ',
                 'province' => 'กรุงเทพฯ',
-                'postal_code' => '10800'
-            ]
+                'postal_code' => '10800',
+            ],
         ];
 
         foreach ($sampleUsers as $userData) {
@@ -128,8 +127,8 @@ class MembershipSeeder extends Seeder
                 'membership_discount_rate' => $membershipInfo['discount_rate'],
                 'membership_point_multiplier' => $membershipInfo['point_multiplier'],
             ]);
-            
-            $this->command->info("Updated existing test user with exMember membership");
+
+            $this->command->info('Updated existing test user with exMember membership');
         }
 
         $this->command->info('Membership seeder completed!');

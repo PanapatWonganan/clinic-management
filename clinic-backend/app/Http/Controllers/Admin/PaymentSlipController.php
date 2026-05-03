@@ -73,7 +73,7 @@ class PaymentSlipController extends Controller
         }
 
         $slip = PaymentSlip::find($slipId);
-        if (!$slip) {
+        if (! $slip) {
             return response()->json([
                 'success' => false,
                 'message' => 'Payment slip not found',

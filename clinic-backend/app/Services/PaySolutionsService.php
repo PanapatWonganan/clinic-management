@@ -2,17 +2,22 @@
 
 namespace App\Services;
 
+use Exception;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use Exception;
 
 class PaySolutionsService
 {
     protected $apiKey;
+
     protected $secretKey;
+
     protected $merchantId;
+
     protected $apiUrl;
+
     protected $paymentUrl;
+
     protected $testMode;
 
     public function __construct()
@@ -57,7 +62,7 @@ class PaySolutionsService
             }
 
             $response = Http::withHeaders($this->getHeaders())
-                ->post($this->apiUrl . '/order/orderdetailpost', $paymentData);
+                ->post($this->apiUrl.'/order/orderdetailpost', $paymentData);
 
             if ($response->successful()) {
                 return [
@@ -85,7 +90,7 @@ class PaySolutionsService
 
             return [
                 'success' => false,
-                'message' => 'Payment service error: ' . $e->getMessage(),
+                'message' => 'Payment service error: '.$e->getMessage(),
             ];
         }
     }
@@ -110,7 +115,7 @@ class PaySolutionsService
             'merchantid' => $this->merchantId,
             'refno' => $orderId,
             'customeremail' => $options['customerEmail'] ?? 'customer@example.com',
-            'productdetail' => $options['productName'] ?? 'Order #' . $orderId,
+            'productdetail' => $options['productName'] ?? 'Order #'.$orderId,
             'total' => $total,
             'lang' => config('paysolutions.language', 'TH'),
             'cc' => config('paysolutions.currency', 'THB'),
@@ -126,11 +131,13 @@ class PaySolutionsService
         // Test mode: return test URL
         if ($this->testMode) {
             $queryString = http_build_query($params);
-            return route('payment.test', ['order_id' => $orderId]) . '?' . $queryString;
+
+            return route('payment.test', ['order_id' => $orderId]).'?'.$queryString;
         }
 
         $queryString = http_build_query($params);
-        return $this->paymentUrl . '?' . $queryString;
+
+        return $this->paymentUrl.'?'.$queryString;
     }
 
     /**
@@ -145,7 +152,7 @@ class PaySolutionsService
         $stringToSign = '';
         foreach ($params as $key => $value) {
             if ($key !== 'signature') {
-                $stringToSign .= $key . '=' . $value . '&';
+                $stringToSign .= $key.'='.$value.'&';
             }
         }
         $stringToSign = rtrim($stringToSign, '&');
@@ -162,7 +169,7 @@ class PaySolutionsService
      */
     public function verifyCallback(array $callbackData): bool
     {
-        if (!isset($callbackData['signature'])) {
+        if (! isset($callbackData['signature'])) {
             return false;
         }
 
@@ -186,7 +193,7 @@ class PaySolutionsService
             }
 
             $response = Http::withHeaders($this->getHeaders())
-                ->get($this->apiUrl . '/order/status/' . $transactionId);
+                ->get($this->apiUrl.'/order/status/'.$transactionId);
 
             if ($response->successful()) {
                 return [
@@ -220,7 +227,7 @@ class PaySolutionsService
         return [
             'success' => true,
             'data' => [
-                'transaction_id' => 'TEST_' . uniqid(),
+                'transaction_id' => 'TEST_'.uniqid(),
                 'order_id' => $paymentData['order_id'] ?? uniqid(),
                 'amount' => $paymentData['amount'] ?? 0,
                 'currency' => 'THB',

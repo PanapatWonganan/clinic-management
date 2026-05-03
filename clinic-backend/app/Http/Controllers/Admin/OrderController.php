@@ -3,11 +3,11 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\Order;
 use App\Models\DeliveryProof;
+use App\Models\Order;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 
 class OrderController extends Controller
 {
@@ -16,7 +16,7 @@ class OrderController extends Controller
         $orders = Order::with(['user', 'orderItems.product', 'paymentSlips', 'paymentTransactions'])
             ->latest()
             ->paginate(15);
-            
+
         // Calculate stats
         $stats = [
             'total_orders' => Order::count(),
@@ -30,20 +30,21 @@ class OrderController extends Controller
             'cancelled' => Order::where('status', 'cancelled')->count(),
             'total_revenue' => Order::whereIn('status', ['paid', 'confirmed', 'processing', 'shipped', 'delivered'])->sum('total_amount'),
         ];
-        
+
         return view('admin.orders.index', compact('orders', 'stats'));
     }
 
     public function show($id)
     {
         $order = Order::with(['user', 'orderItems.product', 'paymentSlips', 'paymentTransactions', 'deliveryProof'])->findOrFail($id);
+
         return view('admin.orders.show', compact('order'));
     }
 
     public function updateStatus(Request $request, $id)
     {
         $request->validate([
-            'status' => 'required|in:pending_payment,payment_uploaded,paid,confirmed,processing,shipped,delivered,cancelled'
+            'status' => 'required|in:pending_payment,payment_uploaded,paid,confirmed,processing,shipped,delivered,cancelled',
         ]);
 
         $order = Order::findOrFail($id);
@@ -59,13 +60,13 @@ class OrderController extends Controller
             'processing' => ['shipped', 'cancelled'],
             'shipped' => ['delivered', 'cancelled'],
             'delivered' => [],
-            'cancelled' => []
+            'cancelled' => [],
         ];
 
-        if (!in_array($newStatus, $validTransitions[$oldStatus] ?? [])) {
+        if (! in_array($newStatus, $validTransitions[$oldStatus] ?? [])) {
             return response()->json([
                 'success' => false,
-                'message' => 'ไม่สามารถเปลี่ยนสถานะจาก ' . $order->status_display . ' เป็น ' . $this->getStatusDisplay($newStatus) . ' ได้'
+                'message' => 'ไม่สามารถเปลี่ยนสถานะจาก '.$order->status_display.' เป็น '.$this->getStatusDisplay($newStatus).' ได้',
             ], 422);
         }
 
@@ -78,12 +79,12 @@ class OrderController extends Controller
             'processing' => 'เริ่มเตรียมสินค้าแล้ว',
             'shipped' => 'ส่งสินค้าเรียบร้อยแล้ว',
             'delivered' => 'ส่งสำเร็จแล้ว',
-            'cancelled' => 'ยกเลิกคำสั่งซื้อแล้ว'
+            'cancelled' => 'ยกเลิกคำสั่งซื้อแล้ว',
         ];
 
         return response()->json([
             'success' => true,
-            'message' => $statusMessages[$newStatus] ?? 'อัพเดตสถานะออเดอร์เรียบร้อยแล้ว'
+            'message' => $statusMessages[$newStatus] ?? 'อัพเดตสถานะออเดอร์เรียบร้อยแล้ว',
         ]);
     }
 
@@ -97,7 +98,7 @@ class OrderController extends Controller
             'processing' => 'กำลังเตรียม',
             'shipped' => 'ส่งแล้ว',
             'delivered' => 'ส่งสำเร็จ',
-            'cancelled' => 'ยกเลิก'
+            'cancelled' => 'ยกเลิก',
         ];
 
         return $statusDisplays[$status] ?? $status;
@@ -110,7 +111,7 @@ class OrderController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'ลบออเดอร์เรียบร้อยแล้ว'
+            'message' => 'ลบออเดอร์เรียบร้อยแล้ว',
         ]);
     }
 
@@ -127,7 +128,7 @@ class OrderController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $stats
+            'data' => $stats,
         ]);
     }
 
@@ -135,17 +136,17 @@ class OrderController extends Controller
     {
         $request->validate([
             'image' => 'required|image|mimes:jpeg,png,jpg|max:5120', // 5MB max
-            'notes' => 'nullable|string|max:500'
+            'notes' => 'nullable|string|max:500',
         ]);
 
         try {
             $order = Order::findOrFail($id);
-            
+
             // Check if order status allows delivery proof upload
-            if (!in_array($order->status, ['paid', 'confirmed', 'processing'])) {
+            if (! in_array($order->status, ['paid', 'confirmed', 'processing'])) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'สามารถอัปโหลดหลักฐานการจัดส่งได้เฉพาะคำสั่งซื้อที่ยืนยันแล้วหรือกำลังเตรียม'
+                    'message' => 'สามารถอัปโหลดหลักฐานการจัดส่งได้เฉพาะคำสั่งซื้อที่ยืนยันแล้วหรือกำลังเตรียม',
                 ], 422);
             }
 
@@ -156,7 +157,7 @@ class OrderController extends Controller
             }
 
             $file = $request->file('image');
-            $filename = 'delivery_proof_' . $order->id . '_' . time() . '.' . $file->getClientOriginalExtension();
+            $filename = 'delivery_proof_'.$order->id.'_'.time().'.'.$file->getClientOriginalExtension();
             $path = $file->storeAs('delivery_proofs', $filename, 'public');
 
             // Create delivery proof record
@@ -180,14 +181,14 @@ class OrderController extends Controller
                     'delivery_proof' => $deliveryProof,
                     'image_url' => $deliveryProof->image_url,
                     'order_status' => 'shipped',
-                    'order_status_display' => 'จัดส่งแล้ว'
-                ]
+                    'order_status_display' => 'จัดส่งแล้ว',
+                ],
             ]);
 
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'เกิดข้อผิดพลาดในการอัปโหลด: ' . $e->getMessage()
+                'message' => 'เกิดข้อผิดพลาดในการอัปโหลด: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -196,20 +197,20 @@ class OrderController extends Controller
     {
         try {
             $order = Order::findOrFail($id);
-            
-            if (!$order->deliveryProof) {
+
+            if (! $order->deliveryProof) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'ไม่พบหลักฐานการจัดส่ง'
+                    'message' => 'ไม่พบหลักฐานการจัดส่ง',
                 ], 404);
             }
 
             // Delete file from storage
             Storage::disk('public')->delete($order->deliveryProof->image_path);
-            
+
             // Delete record
             $order->deliveryProof->delete();
-            
+
             // Revert order status back to processing
             $order->update(['status' => 'processing']);
 
@@ -217,13 +218,13 @@ class OrderController extends Controller
                 'success' => true,
                 'message' => 'ลบหลักฐานการจัดส่งสำเร็จ',
                 'order_status' => 'processing',
-                'order_status_display' => 'กำลังเตรียมสินค้า'
+                'order_status_display' => 'กำลังเตรียมสินค้า',
             ]);
 
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'เกิดข้อผิดพลาดในการลบ: ' . $e->getMessage()
+                'message' => 'เกิดข้อผิดพลาดในการลบ: '.$e->getMessage(),
             ], 500);
         }
     }

@@ -197,7 +197,7 @@ class _MyFreeItemsScreenState extends State<MyFreeItemsScreen>
             children: [
               Text(
                 '$totalRemaining',
-                style: TextStyle(
+                style: const TextStyle(
                   color: AppColors.mainPurple,
                   fontSize: 64,
                   fontWeight: FontWeight.w700,
@@ -489,7 +489,7 @@ class _MyFreeItemsScreenState extends State<MyFreeItemsScreen>
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color: _getLevelColor(level).withOpacity(0.1),
+              color: _getLevelColor(level).withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Center(
@@ -708,7 +708,7 @@ class _MyFreeItemsScreenState extends State<MyFreeItemsScreen>
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             decoration: BoxDecoration(
-              color: _getStatusColor(status).withOpacity(0.1),
+              color: _getStatusColor(status).withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(6),
             ),
             child: Text(

@@ -2,9 +2,9 @@
 
 namespace App\Console\Commands;
 
-use Illuminate\Console\Command;
 use App\Jobs\SendDailySalesReport;
 use Carbon\Carbon;
+use Illuminate\Console\Command;
 
 class SendDailySalesReportCommand extends Command
 {
@@ -14,16 +14,16 @@ class SendDailySalesReportCommand extends Command
 
     public function handle()
     {
-        $date = $this->option('date') ? 
-            Carbon::createFromFormat('Y-m-d', $this->option('date')) : 
+        $date = $this->option('date') ?
+            Carbon::createFromFormat('Y-m-d', $this->option('date')) :
             Carbon::yesterday();
 
-        $this->info("Dispatching daily sales report for: " . $date->format('Y-m-d'));
-        
+        $this->info('Dispatching daily sales report for: '.$date->format('Y-m-d'));
+
         SendDailySalesReport::dispatch($date);
-        
+
         $this->info('Daily sales report job dispatched successfully!');
-        
+
         return 0;
     }
 }

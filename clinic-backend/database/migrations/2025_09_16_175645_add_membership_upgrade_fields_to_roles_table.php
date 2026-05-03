@@ -32,7 +32,7 @@ return new class extends Migration
                 'upgrade_required_quantity',
                 'upgrades_to_role_id',
                 'upgrade_conditions',
-                'auto_upgrade'
+                'auto_upgrade',
             ]);
         });
     }

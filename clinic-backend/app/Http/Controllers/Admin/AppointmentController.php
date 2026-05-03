@@ -11,6 +11,7 @@ class AppointmentController extends Controller
     public function index()
     {
         $appointments = Appointment::with('patient')->latest()->paginate(10);
+
         return view('admin.appointments.index', compact('appointments'));
     }
 
@@ -29,13 +30,14 @@ class AppointmentController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'เพิ่มนัดหมายสำเร็จ',
-            'data' => $appointment
+            'data' => $appointment,
         ]);
     }
 
     public function show($id)
     {
         $appointment = Appointment::with('patient')->findOrFail($id);
+
         return view('admin.appointments.show', compact('appointment'));
     }
 
@@ -55,7 +57,7 @@ class AppointmentController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'อัปเดตนัดหมายสำเร็จ',
-            'data' => $appointment
+            'data' => $appointment,
         ]);
     }
 
@@ -66,7 +68,7 @@ class AppointmentController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'ลบนัดหมายสำเร็จ'
+            'message' => 'ลบนัดหมายสำเร็จ',
         ]);
     }
 }

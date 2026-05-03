@@ -82,7 +82,7 @@ class _PaymentPendingScreenState extends State<PaymentPendingScreen> {
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: AppColors.lightGray.withOpacity(0.5),
+                  color: AppColors.lightGray.withValues(alpha: 0.5),
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -154,10 +154,10 @@ class _PaymentPendingScreenState extends State<PaymentPendingScreen> {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: AppColors.lightPurple.withOpacity(0.1),
+          color: AppColors.lightPurple.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: AppColors.lightGray.withOpacity(0.3),
+            color: AppColors.lightGray.withValues(alpha: 0.3),
           ),
         ),
         child: Column(
@@ -166,7 +166,7 @@ class _PaymentPendingScreenState extends State<PaymentPendingScreen> {
               width: 48,
               height: 48,
               decoration: BoxDecoration(
-                color: AppColors.mainPurple.withOpacity(0.1),
+                color: AppColors.mainPurple.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(24),
               ),
               child: Icon(
@@ -422,7 +422,7 @@ class _PaymentPendingScreenState extends State<PaymentPendingScreen> {
                       height: 120,
                       decoration: BoxDecoration(
                         color: _getStatusColor(currentOrderStatus)
-                            .withOpacity(0.1),
+                            .withValues(alpha: 0.1),
                         shape: BoxShape.circle,
                       ),
                       child: Icon(
@@ -469,10 +469,10 @@ class _PaymentPendingScreenState extends State<PaymentPendingScreen> {
                       width: double.infinity,
                       padding: const EdgeInsets.all(20),
                       decoration: BoxDecoration(
-                        color: AppColors.lightPurple.withOpacity(0.1),
+                        color: AppColors.lightPurple.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color: AppColors.mainPurple.withOpacity(0.2),
+                          color: AppColors.mainPurple.withValues(alpha: 0.2),
                           width: 1,
                         ),
                       ),
@@ -582,7 +582,7 @@ class _PaymentPendingScreenState extends State<PaymentPendingScreen> {
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
-                            color: AppColors.lightGray.withOpacity(0.2),
+                            color: AppColors.lightGray.withValues(alpha: 0.2),
                             width: 1,
                           ),
                         ),
@@ -671,10 +671,10 @@ class _PaymentPendingScreenState extends State<PaymentPendingScreen> {
                           width: double.infinity,
                           height: 100,
                           decoration: BoxDecoration(
-                            color: AppColors.lightPurple.withOpacity(0.3),
+                            color: AppColors.lightPurple.withValues(alpha: 0.3),
                             borderRadius: BorderRadius.circular(8),
                             border: Border.all(
-                              color: AppColors.mainPurple.withOpacity(0.3),
+                              color: AppColors.mainPurple.withValues(alpha: 0.3),
                               width: 1,
                               style: BorderStyle.solid,
                             ),
@@ -742,7 +742,7 @@ class _PaymentPendingScreenState extends State<PaymentPendingScreen> {
                                   color: Colors.white,
                                   borderRadius: BorderRadius.circular(8),
                                   border: Border.all(
-                                    color: AppColors.lightGray.withOpacity(0.3),
+                                    color: AppColors.lightGray.withValues(alpha: 0.3),
                                     width: 1,
                                   ),
                                 ),
@@ -812,7 +812,7 @@ class _PaymentPendingScreenState extends State<PaymentPendingScreen> {
                 color: Colors.white,
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
+                    color: Colors.black.withValues(alpha: 0.1),
                     spreadRadius: 0,
                     blurRadius: 4,
                     offset: const Offset(0, -2),

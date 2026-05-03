@@ -3,10 +3,9 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\User;
-use App\Models\CustomerAddress;
-use App\Models\UserClaimedReward;
 use App\Models\FreeItemRedemption;
+use App\Models\User;
+use App\Models\UserClaimedReward;
 use App\Services\MembershipProgressService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -22,16 +21,16 @@ class CustomerController extends Controller
         // If API request, return JSON
         if ($request->expectsJson() || $request->is('*/api/*')) {
             $customers = User::orderBy('created_at', 'desc')->get();
-            
+
             // Add membership info to each customer
             $customers->each(function ($customer) {
                 $customer->membership_info = $customer->getMembershipInfo();
                 $customer->membership_status = $customer->getMembershipStatus();
             });
-            
+
             return response()->json([
                 'success' => true,
-                'data' => $customers
+                'data' => $customers,
             ]);
         }
 
@@ -64,7 +63,7 @@ class CustomerController extends Controller
             ->get()
             ->keyBy('user_id');
 
-        $membershipProgressService = new MembershipProgressService();
+        $membershipProgressService = new MembershipProgressService;
         $customers->getCollection()->each(function ($customer) use ($membershipProgressService, $rewardCounts, $redemptionTotals) {
             $customer->membership_info = $customer->getMembershipInfo();
             $customer->membership_status = $customer->getMembershipStatus();
@@ -88,9 +87,9 @@ class CustomerController extends Controller
             'new_customers_this_month' => User::whereMonth('created_at', now()->month)->count(),
             'membership_breakdown' => User::selectRaw('membership_type, COUNT(*) as count')
                 ->groupBy('membership_type')
-                ->get()
+                ->get(),
         ];
-        
+
         return view('admin.customers.index', compact('customers', 'stats'));
     }
 
@@ -110,7 +109,7 @@ class CustomerController extends Controller
             'postal_code' => 'nullable|string|max:10',
             // New Thai address fields
             'province_id' => 'nullable|integer',
-            'district_id' => 'nullable|integer', 
+            'district_id' => 'nullable|integer',
             'sub_district_id' => 'nullable|integer',
             // Membership validation
             'membership_type' => 'nullable|in:exMember,exDoctor,exVip,exSupervip',
@@ -121,7 +120,7 @@ class CustomerController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'ข้อมูลไม่ถูกต้อง',
-                'errors' => $validator->errors()
+                'errors' => $validator->errors(),
             ], 422);
         }
 
@@ -162,12 +161,12 @@ class CustomerController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'เพิ่มลูกค้าสำเร็จ',
-                'data' => $customer
+                'data' => $customer,
             ], 201);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'เกิดข้อผิดพลาดในการเพิ่มลูกค้า: ' . $e->getMessage()
+                'message' => 'เกิดข้อผิดพลาดในการเพิ่มลูกค้า: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -179,19 +178,19 @@ class CustomerController extends Controller
     {
         try {
             $customer = User::findOrFail($id);
-            
+
             // Add membership info
             $customer->membership_info = $customer->getMembershipInfo();
             $customer->membership_status = $customer->getMembershipStatus();
-            
+
             return response()->json([
                 'success' => true,
-                'data' => $customer
+                'data' => $customer,
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'ไม่พบลูกค้า'
+                'message' => 'ไม่พบลูกค้า',
             ], 404);
         }
     }
@@ -206,7 +205,7 @@ class CustomerController extends Controller
 
             $validator = Validator::make($request->all(), [
                 'name' => 'required|string|max:255',
-                'email' => 'required|string|email|max:255|unique:users,email,' . $id,
+                'email' => 'required|string|email|max:255|unique:users,email,'.$id,
                 'password' => 'nullable|string|min:8',
                 'phone' => 'nullable|string|max:20',
                 'address' => 'nullable|string|max:500',
@@ -222,7 +221,7 @@ class CustomerController extends Controller
                 return response()->json([
                     'success' => false,
                     'message' => 'ข้อมูลไม่ถูกต้อง',
-                    'errors' => $validator->errors()
+                    'errors' => $validator->errors(),
                 ], 422);
             }
 
@@ -275,12 +274,12 @@ class CustomerController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'อัพเดตลูกค้าสำเร็จ',
-                'data' => $freshCustomer
+                'data' => $freshCustomer,
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'เกิดข้อผิดพลาดในการอัพเดตลูกค้า: ' . $e->getMessage()
+                'message' => 'เกิดข้อผิดพลาดในการอัพเดตลูกค้า: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -296,12 +295,12 @@ class CustomerController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'ลบลูกค้าสำเร็จ'
+                'message' => 'ลบลูกค้าสำเร็จ',
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'เกิดข้อผิดพลาดในการลบลูกค้า: ' . $e->getMessage()
+                'message' => 'เกิดข้อผิดพลาดในการลบลูกค้า: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -314,16 +313,16 @@ class CustomerController extends Controller
         try {
             $customer = User::findOrFail($id);
             $addresses = $customer->addresses()->orderBy('is_default', 'desc')->orderBy('created_at', 'desc')->get();
-            
+
             return response()->json([
                 'success' => true,
                 'customer_name' => $customer->name,
-                'addresses' => $addresses
+                'addresses' => $addresses,
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'เกิดข้อผิดพลาดในการดึงข้อมูลที่อยู่: ' . $e->getMessage()
+                'message' => 'เกิดข้อผิดพลาดในการดึงข้อมูลที่อยู่: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -345,13 +344,13 @@ class CustomerController extends Controller
                 'data' => [
                     'total_customers' => $totalCustomers,
                     'new_customers_this_month' => $newCustomersThisMonth,
-                    'new_customers_today' => $newCustomersToday
-                ]
+                    'new_customers_today' => $newCustomersToday,
+                ],
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'เกิดข้อผิดพลาดในการดึงสถิติลูกค้า: ' . $e->getMessage()
+                'message' => 'เกิดข้อผิดพลาดในการดึงสถิติลูกค้า: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -363,15 +362,15 @@ class CustomerController extends Controller
     {
         try {
             $membershipTypes = User::getMembershipTypes();
-            
+
             return response()->json([
                 'success' => true,
-                'data' => $membershipTypes
+                'data' => $membershipTypes,
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'เกิดข้อผิดพลาดในการดึงข้อมูล membership types: ' . $e->getMessage()
+                'message' => 'เกิดข้อผิดพลาดในการดึงข้อมูล membership types: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -393,7 +392,7 @@ class CustomerController extends Controller
                 return response()->json([
                     'success' => false,
                     'message' => 'ข้อมูลไม่ถูกต้อง',
-                    'errors' => $validator->errors()
+                    'errors' => $validator->errors(),
                 ], 422);
             }
 
@@ -420,12 +419,12 @@ class CustomerController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'อัพเดต membership สำเร็จ',
-                'data' => $freshCustomer
+                'data' => $freshCustomer,
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'เกิดข้อผิดพลาดในการอัพเดต membership: ' . $e->getMessage()
+                'message' => 'เกิดข้อผิดพลาดในการอัพเดต membership: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -441,7 +440,7 @@ class CustomerController extends Controller
             $customer->membership_status = $customer->getMembershipStatus();
 
             // Get membership progress
-            $membershipProgressService = new MembershipProgressService();
+            $membershipProgressService = new MembershipProgressService;
             $membershipProgress = $membershipProgressService->getMembershipProgress($customer);
 
             // Get claimed rewards
@@ -460,12 +459,12 @@ class CustomerController extends Controller
                 'customer' => $customer,
                 'membership_progress' => $membershipProgress,
                 'claimed_rewards' => $claimedRewards,
-                'redemptions' => $redemptions
+                'redemptions' => $redemptions,
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'เกิดข้อผิดพลาดในการดึงข้อมูลลูกค้า: ' . $e->getMessage()
+                'message' => 'เกิดข้อผิดพลาดในการดึงข้อมูลลูกค้า: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -480,25 +479,25 @@ class CustomerController extends Controller
                 'total_by_type' => [],
                 'active_memberships' => 0,
                 'expired_memberships' => 0,
-                'revenue_potential' => 0
+                'revenue_potential' => 0,
             ];
 
             $membershipTypes = User::getMembershipTypes();
-            
+
             foreach ($membershipTypes as $type => $info) {
                 $count = User::where('membership_type', $type)->count();
                 $membershipStats['total_by_type'][$type] = [
                     'count' => $count,
                     'name' => $info['name'],
-                    'color' => $info['color']
+                    'color' => $info['color'],
                 ];
             }
 
             // Count active vs expired memberships
             $membershipStats['active_memberships'] = User::whereNotNull('membership_start_date')
-                ->where(function($query) {
+                ->where(function ($query) {
                     $query->whereNull('membership_end_date')
-                          ->orWhere('membership_end_date', '>', now());
+                        ->orWhere('membership_end_date', '>', now());
                 })->count();
 
             $membershipStats['expired_memberships'] = User::whereNotNull('membership_end_date')
@@ -506,12 +505,12 @@ class CustomerController extends Controller
 
             return response()->json([
                 'success' => true,
-                'data' => $membershipStats
+                'data' => $membershipStats,
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'เกิดข้อผิดพลาดในการดึงสถิติ membership: ' . $e->getMessage()
+                'message' => 'เกิดข้อผิดพลาดในการดึงสถิติ membership: '.$e->getMessage(),
             ], 500);
         }
     }

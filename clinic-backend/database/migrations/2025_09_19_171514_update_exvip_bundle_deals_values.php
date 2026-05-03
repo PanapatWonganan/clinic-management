@@ -1,8 +1,6 @@
 <?php
 
 use Illuminate\Database\Migrations\Migration;
-use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\DB;
 
 return new class extends Migration
@@ -15,7 +13,7 @@ return new class extends Migration
         // Skip if the ex_vip role hasn't been seeded yet (e.g., fresh test
         // database). The roles seeder will populate later; if those rows
         // never exist there is nothing to update.
-        if (!DB::table('roles')->where('id', 2)->exists()) {
+        if (! DB::table('roles')->where('id', 2)->exists()) {
             return;
         }
 
@@ -140,7 +138,7 @@ return new class extends Migration
      */
     public function down(): void
     {
-        if (!DB::table('roles')->where('id', 2)->exists()) {
+        if (! DB::table('roles')->where('id', 2)->exists()) {
             return;
         }
         // Restore original exVip bundle deals if needed

@@ -25,7 +25,7 @@ return new class extends Migration
             // Foreign keys
             $table->foreign('order_id')->references('id')->on('orders')->onDelete('cascade');
             $table->foreign('uploaded_by')->references('id')->on('users');
-            
+
             // Index
             $table->index('order_id');
         });

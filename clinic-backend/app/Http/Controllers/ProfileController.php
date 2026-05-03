@@ -2,10 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\MembershipBundleDeal;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules\Password;
-use App\Models\MembershipBundleDeal;
 
 class ProfileController extends Controller
 {
@@ -37,10 +37,10 @@ class ProfileController extends Controller
     public function update(Request $request)
     {
         $user = $request->user();
-        
+
         $validated = $request->validate([
             'name' => 'sometimes|string|max:255',
-            'email' => 'sometimes|string|email|max:255|unique:users,email,' . $user->id,
+            'email' => 'sometimes|string|email|max:255|unique:users,email,'.$user->id,
             'phone' => 'nullable|string|max:20',
             'address' => 'nullable|string|max:500',
             'district' => 'nullable|string|max:100',
@@ -84,11 +84,11 @@ class ProfileController extends Controller
             // District field contains the sub-district name when using Thai address dropdown
             $validated['district'] = $validated['district'];
         }
-        
+
         if (isset($validated['province'])) {
             $validated['province'] = $validated['province'];
         }
-        
+
         if (isset($validated['postalCode'])) {
             // Already handled above, just ensure it's in the right format
         }
@@ -109,7 +109,7 @@ class ProfileController extends Controller
                 'provinceId' => $user->province_id,
                 'districtId' => $user->district_id,
                 'subDistrictId' => $user->sub_district_id,
-            ]
+            ],
         ]);
     }
 
@@ -127,7 +127,7 @@ class ProfileController extends Controller
             ->whereIn('status', ['pending_payment', 'payment_uploaded', 'paid', 'confirmed', 'processing', 'shipped', 'delivered'])
             ->where(function ($query) {
                 $query->where('is_free_item_order', false)
-                      ->orWhereNull('is_free_item_order');
+                    ->orWhereNull('is_free_item_order');
             })
             ->with('orderItems')
             ->get();
@@ -227,7 +227,7 @@ class ProfileController extends Controller
                 'savings_amount' => $canClaim ? $deal->savings_amount : 0,
                 'unit_price' => $deal->unit_price,
                 'effective_price' => $deal->effective_price_per_unit,
-                'remaining_for_next' => $remainingForNext
+                'remaining_for_next' => $remainingForNext,
             ];
 
             if ($canClaim) {
@@ -255,8 +255,8 @@ class ProfileController extends Controller
                 'next_milestone' => $this->getNextMilestone($effectiveQuantity, $bundleDeals),
                 'available_rewards' => $availableRewards,
                 'has_claimed_before' => $hasClaimedAnyReward,
-                'last_claim_date' => $hasClaimedAnyReward ? $claimedRewards->sortByDesc('created_at')->first()->created_at->toISOString() : null
-            ]
+                'last_claim_date' => $hasClaimedAnyReward ? $claimedRewards->sortByDesc('created_at')->first()->created_at->toISOString() : null,
+            ],
         ]);
     }
 
@@ -274,7 +274,7 @@ class ProfileController extends Controller
                     'savings_amount' => floatval($level['savings_amount']),
                     'unit_price' => floatval($level['unit_price']),
                     'display_name' => $level['display_name'],
-                    'completed_bundles' => intval($level['completed_bundles'])
+                    'completed_bundles' => intval($level['completed_bundles']),
                 ];
             }
         }
@@ -290,13 +290,14 @@ class ProfileController extends Controller
 
             if ($nextMilestoneQuantity > $currentQuantity) {
                 $remaining = $nextMilestoneQuantity - $currentQuantity;
+
                 return [
                     'level' => $deal->level,
                     'display_name' => $deal->display_name,
                     'target_quantity' => $nextMilestoneQuantity,
                     'remaining_quantity' => $remaining,
                     'reward_items' => $deal->free_quantity,
-                    'potential_savings' => $deal->savings_amount
+                    'potential_savings' => $deal->savings_amount,
                 ];
             }
         }
@@ -312,7 +313,7 @@ class ProfileController extends Controller
             // If the level is completed, has earned items, and hasn't been claimed yet
             if ($level['is_completed'] &&
                 $level['completed_bundles'] > 0 &&
-                !in_array($level['level'], $claimedLevels)) {
+                ! in_array($level['level'], $claimedLevels)) {
 
                 $availableRewards[] = [
                     'level' => $level['level'],
@@ -321,7 +322,7 @@ class ProfileController extends Controller
                     'savings_amount' => floatval($level['savings_amount']),
                     'unit_price' => floatval($level['unit_price']),
                     'display_name' => $level['display_name'],
-                    'completed_bundles' => intval($level['completed_bundles'])
+                    'completed_bundles' => intval($level['completed_bundles']),
                 ];
             }
         }
@@ -392,11 +393,11 @@ class ProfileController extends Controller
             ->where('level', $validated['level'])
             ->first();
 
-        if (!$targetDeal) {
+        if (! $targetDeal) {
             return response()->json([
                 'success' => false,
                 'message' => 'ไม่พบระดับรางวัลนี้',
-                'error' => 'LEVEL_NOT_FOUND'
+                'error' => 'LEVEL_NOT_FOUND',
             ], 400);
         }
 
@@ -407,7 +408,7 @@ class ProfileController extends Controller
                 'message' => "ยอดซื้อไม่เพียงพอ ต้องการ {$targetDeal->required_quantity} ชิ้น แต่มี {$effectiveQuantity} ชิ้น",
                 'error' => 'INSUFFICIENT_QUANTITY',
                 'required' => $targetDeal->required_quantity,
-                'current' => $effectiveQuantity
+                'current' => $effectiveQuantity,
             ], 400);
         }
 
@@ -421,7 +422,7 @@ class ProfileController extends Controller
                 'earned_free_items' => $targetDeal->free_quantity,
                 'unit_price' => $targetDeal->unit_price,
                 'savings_amount' => $targetDeal->savings_amount,
-                'status' => 'pending'
+                'status' => 'pending',
             ]);
 
             return response()->json([
@@ -436,14 +437,14 @@ class ProfileController extends Controller
                     'savings_amount' => $targetDeal->savings_amount,
                     'status' => 'pending',
                     'claimed_at' => $claimedReward->created_at->toISOString(),
-                ]
+                ],
             ]);
 
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'เกิดข้อผิดพลาดในการแลกรางวัล',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -532,7 +533,7 @@ class ProfileController extends Controller
                 'savings_amount' => $bundleSavings,
                 'unit_price' => $deal->unit_price,
                 'effective_price' => $deal->effective_price_per_unit,
-                'remaining_for_next' => max(0, $deal->required_quantity - $effectiveQuantity)
+                'remaining_for_next' => max(0, $deal->required_quantity - $effectiveQuantity),
             ];
         }
 
@@ -542,7 +543,7 @@ class ProfileController extends Controller
     private function getRemainingRewards($availableRewards, $claimedLevel)
     {
         // ส่งกลับรางวัลที่เหลือหลังจากแลกรางวัลแล้ว
-        return array_filter($availableRewards, function($reward) use ($claimedLevel) {
+        return array_filter($availableRewards, function ($reward) use ($claimedLevel) {
             return $reward['level'] !== $claimedLevel;
         });
     }

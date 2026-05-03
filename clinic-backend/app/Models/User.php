@@ -9,12 +9,15 @@ use Laravel\Sanctum\HasApiTokens;
 
 class User extends \Illuminate\Foundation\Auth\User
 {
-    use HasFactory, Notifiable, HasApiTokens;
+    use HasApiTokens, HasFactory, Notifiable;
 
     // Membership type constants
     const MEMBERSHIP_EXMEMBER = 'exMember';
+
     const MEMBERSHIP_EXDOCTOR = 'exDoctor';
+
     const MEMBERSHIP_EXVIP = 'exVip';
+
     const MEMBERSHIP_EXSUPERVIP = 'exSupervip';
 
     protected $fillable = [
@@ -62,7 +65,7 @@ class User extends \Illuminate\Foundation\Auth\User
     }
 
     // Membership helper methods
-    
+
     /**
      * Get all available membership types
      */
@@ -78,7 +81,7 @@ class User extends \Illuminate\Foundation\Auth\User
                 'benefits' => [
                     'basic_access' => true,
                     'standard_support' => true,
-                ]
+                ],
             ],
             self::MEMBERSHIP_EXDOCTOR => [
                 'name' => 'EX DOCTOR',
@@ -91,7 +94,7 @@ class User extends \Illuminate\Foundation\Auth\User
                     'medical_information' => true,
                     'priority_support' => true,
                     'professional_discount' => true,
-                ]
+                ],
             ],
             self::MEMBERSHIP_EXVIP => [
                 'name' => 'EX VIP',
@@ -105,7 +108,7 @@ class User extends \Illuminate\Foundation\Auth\User
                     'priority_support' => true,
                     'early_access' => true,
                     'vip_events' => true,
-                ]
+                ],
             ],
             self::MEMBERSHIP_EXSUPERVIP => [
                 'name' => 'EX SUPERVIP',
@@ -120,7 +123,7 @@ class User extends \Illuminate\Foundation\Auth\User
                     'exclusive_events' => true,
                     'custom_orders' => true,
                     'premium_shipping' => true,
-                ]
+                ],
             ],
         ];
     }
@@ -131,6 +134,7 @@ class User extends \Illuminate\Foundation\Auth\User
     public function getMembershipInfo(): array
     {
         $types = self::getMembershipTypes();
+
         return $types[$this->membership_type] ?? $types[self::MEMBERSHIP_EXMEMBER];
     }
 
@@ -139,10 +143,10 @@ class User extends \Illuminate\Foundation\Auth\User
      */
     public function isMembershipActive(): bool
     {
-        if (!$this->membership_end_date) {
+        if (! $this->membership_end_date) {
             return true; // Lifetime membership
         }
-        
+
         return $this->membership_end_date->isFuture();
     }
 
@@ -151,14 +155,14 @@ class User extends \Illuminate\Foundation\Auth\User
      */
     public function getMembershipStatus(): string
     {
-        if (!$this->membership_start_date) {
+        if (! $this->membership_start_date) {
             return 'inactive';
         }
-        
-        if (!$this->isMembershipActive()) {
+
+        if (! $this->isMembershipActive()) {
             return 'expired';
         }
-        
+
         return 'active';
     }
 
@@ -168,6 +172,7 @@ class User extends \Illuminate\Foundation\Auth\User
     public function hasBenefit(string $benefit): bool
     {
         $membershipInfo = $this->getMembershipInfo();
+
         return $membershipInfo['benefits'][$benefit] ?? false;
     }
 
@@ -176,11 +181,12 @@ class User extends \Illuminate\Foundation\Auth\User
      */
     public function calculateDiscountedPrice(float $originalPrice): float
     {
-        if (!$this->isMembershipActive()) {
+        if (! $this->isMembershipActive()) {
             return $originalPrice;
         }
 
         $discountAmount = $originalPrice * ($this->membership_discount_rate / 100);
+
         return $originalPrice - $discountAmount;
     }
 
@@ -189,7 +195,7 @@ class User extends \Illuminate\Foundation\Auth\User
      */
     public function calculatePoints(float $spentAmount): float
     {
-        if (!$this->isMembershipActive()) {
+        if (! $this->isMembershipActive()) {
             return $spentAmount; // 1:1 ratio for inactive
         }
 

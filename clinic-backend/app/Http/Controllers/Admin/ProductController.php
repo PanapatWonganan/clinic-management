@@ -5,8 +5,8 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Product;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Validator;
 
 class ProductController extends Controller
 {
@@ -18,9 +18,10 @@ class ProductController extends Controller
         // If API request, return JSON
         if ($request->expectsJson() || $request->is('*/api/*')) {
             $products = Product::orderBy('created_at', 'desc')->get();
+
             return response()->json([
                 'success' => true,
-                'data' => $products
+                'data' => $products,
             ]);
         }
 
@@ -35,9 +36,9 @@ class ProductController extends Controller
             'category_breakdown' => Product::selectRaw('category, COUNT(*) as count')
                 ->groupBy('category')
                 ->get(),
-            'total_value' => Product::sum(\DB::raw('price * stock'))
+            'total_value' => Product::sum(\DB::raw('price * stock')),
         ];
-        
+
         return view('admin.products.index', compact('products', 'stats'));
     }
 
@@ -60,7 +61,7 @@ class ProductController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'ข้อมูลไม่ถูกต้อง',
-                'errors' => $validator->errors()
+                'errors' => $validator->errors(),
             ], 422);
         }
 
@@ -78,7 +79,7 @@ class ProductController extends Controller
             // Handle image upload
             if ($request->hasFile('image')) {
                 $image = $request->file('image');
-                $imageName = time() . '_' . $image->getClientOriginalName();
+                $imageName = time().'_'.$image->getClientOriginalName();
                 $path = $image->storeAs('products', $imageName, 'public');
                 $data['image_url'] = Storage::url($path);
             }
@@ -88,12 +89,12 @@ class ProductController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'เพิ่มสินค้าสำเร็จ',
-                'data' => $product
+                'data' => $product,
             ], 201);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'เกิดข้อผิดพลาดในการเพิ่มสินค้า: ' . $e->getMessage()
+                'message' => 'เกิดข้อผิดพลาดในการเพิ่มสินค้า: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -105,14 +106,15 @@ class ProductController extends Controller
     {
         try {
             $product = Product::findOrFail($id);
+
             return response()->json([
                 'success' => true,
-                'data' => $product
+                'data' => $product,
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'ไม่พบสินค้า'
+                'message' => 'ไม่พบสินค้า',
             ], 404);
         }
     }
@@ -139,7 +141,7 @@ class ProductController extends Controller
                 return response()->json([
                     'success' => false,
                     'message' => 'ข้อมูลไม่ถูกต้อง',
-                    'errors' => $validator->errors()
+                    'errors' => $validator->errors(),
                 ], 422);
             }
 
@@ -155,13 +157,13 @@ class ProductController extends Controller
             // Handle image upload
             if ($request->hasFile('image')) {
                 // Delete old image if exists
-                if ($product->image_url && !str_starts_with($product->image_url, 'http')) {
+                if ($product->image_url && ! str_starts_with($product->image_url, 'http')) {
                     $oldPath = str_replace('/storage/', '', $product->image_url);
                     Storage::disk('public')->delete($oldPath);
                 }
 
                 $image = $request->file('image');
-                $imageName = time() . '_' . $image->getClientOriginalName();
+                $imageName = time().'_'.$image->getClientOriginalName();
                 $path = $image->storeAs('products', $imageName, 'public');
                 $updateData['image_url'] = Storage::url($path);
             }
@@ -171,12 +173,12 @@ class ProductController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'อัพเดตสินค้าสำเร็จ',
-                'data' => $product->fresh()
+                'data' => $product->fresh(),
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'เกิดข้อผิดพลาดในการอัพเดตสินค้า: ' . $e->getMessage()
+                'message' => 'เกิดข้อผิดพลาดในการอัพเดตสินค้า: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -193,12 +195,12 @@ class ProductController extends Controller
             if ($product->orderItems()->count() > 0) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'ไม่สามารถลบสินค้าที่มีรายการสั่งซื้อแล้ว'
+                    'message' => 'ไม่สามารถลบสินค้าที่มีรายการสั่งซื้อแล้ว',
                 ], 422);
             }
 
             // Delete image if exists
-            if ($product->image_url && !str_starts_with($product->image_url, 'http')) {
+            if ($product->image_url && ! str_starts_with($product->image_url, 'http')) {
                 $path = str_replace('/storage/', '', $product->image_url);
                 Storage::disk('public')->delete($path);
             }
@@ -207,12 +209,12 @@ class ProductController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'ลบสินค้าสำเร็จ'
+                'message' => 'ลบสินค้าสำเร็จ',
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'เกิดข้อผิดพลาดในการลบสินค้า: ' . $e->getMessage()
+                'message' => 'เกิดข้อผิดพลาดในการลบสินค้า: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -236,13 +238,13 @@ class ProductController extends Controller
                     'active_products' => $activeProducts,
                     'inactive_products' => $inactiveProducts,
                     'low_stock_products' => $lowStockProducts,
-                    'out_of_stock_products' => $outOfStockProducts
-                ]
+                    'out_of_stock_products' => $outOfStockProducts,
+                ],
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'เกิดข้อผิดพลาดในการดึงสถิติสินค้า: ' . $e->getMessage()
+                'message' => 'เกิดข้อผิดพลาดในการดึงสถิติสินค้า: '.$e->getMessage(),
             ], 500);
         }
     }

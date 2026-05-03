@@ -24,7 +24,7 @@ class PaySolutionsSignatureTest extends TestCase
         config(['paysolutions.secret_key' => 'secret-xyz']);
         config(['paysolutions.merchant_id' => '12345678']);
 
-        $svc = new PaySolutionsService();
+        $svc = new PaySolutionsService;
         $url = $svc->generatePaymentUrl('ORD-1', 200.00, [
             'customerEmail' => 'a@b.com',
             'productName' => 'thing',
@@ -41,7 +41,7 @@ class PaySolutionsSignatureTest extends TestCase
         config(['paysolutions.secret_key' => 'secret-xyz']);
         config(['paysolutions.merchant_id' => '12345678']);
 
-        $svc = new PaySolutionsService();
+        $svc = new PaySolutionsService;
         $url = $svc->generatePaymentUrl('ORD-2', 500.00, [
             'customerEmail' => 'a@b.com',
             'productName' => 'thing',
@@ -58,7 +58,7 @@ class PaySolutionsSignatureTest extends TestCase
 
     public function test_verify_callback_rejects_missing_signature(): void
     {
-        $svc = new PaySolutionsService();
+        $svc = new PaySolutionsService;
         $this->assertFalse($svc->verifyCallback(['order_id' => 'X', 'status' => 'success']));
     }
 }

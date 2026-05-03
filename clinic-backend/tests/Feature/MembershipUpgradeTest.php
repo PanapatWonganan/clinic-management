@@ -49,7 +49,7 @@ class MembershipUpgradeTest extends TestCase
             'payment_slip_status' => 'approved',
         ]);
 
-        $controller = new \App\Http\Controllers\ProfileController();
+        $controller = new \App\Http\Controllers\ProfileController;
         $reflection = new \ReflectionMethod($controller, 'checkAndUpgradeMembership');
         $reflection->setAccessible(true);
         $reflection->invoke($controller, $user);

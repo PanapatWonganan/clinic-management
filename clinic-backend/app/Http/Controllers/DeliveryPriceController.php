@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
 use App\Models\DeliveryPrice;
 use App\Models\DeliveryPriceByDistrict;
+use Illuminate\Http\Request;
 
 class DeliveryPriceController extends Controller
 {
@@ -14,12 +14,12 @@ class DeliveryPriceController extends Controller
     public function getDeliveryOptions($districtName)
     {
         $options = DeliveryPrice::getDeliveryOptions($districtName);
-        
-        if (!$options) {
+
+        if (! $options) {
             return response()->json([
                 'success' => false,
                 'message' => 'District not found',
-                'data' => null
+                'data' => null,
             ], 404);
         }
 
@@ -34,31 +34,31 @@ class DeliveryPriceController extends Controller
                         'vehicle_type' => 'motorcycle',
                         'price' => $options['grab_motorcycle'],
                         'display_name' => 'Grab - มอเตอร์ไซค์',
-                        'estimated_time' => '30-60 นาที'
+                        'estimated_time' => '30-60 นาที',
                     ],
                     [
                         'company' => 'grab',
                         'vehicle_type' => 'car',
                         'price' => $options['grab_car'],
                         'display_name' => 'Grab - รถยนต์',
-                        'estimated_time' => '45-90 นาที'
+                        'estimated_time' => '45-90 นาที',
                     ],
                     [
                         'company' => 'lalamove',
                         'vehicle_type' => 'motorcycle',
                         'price' => $options['lalamove_motorcycle'],
                         'display_name' => 'Lalamove - มอเตอร์ไซค์',
-                        'estimated_time' => '25-50 นาที'
+                        'estimated_time' => '25-50 นาที',
                     ],
                     [
                         'company' => 'lalamove',
                         'vehicle_type' => 'car',
                         'price' => $options['lalamove_car'],
                         'display_name' => 'Lalamove - รถยนต์',
-                        'estimated_time' => '40-80 นาที'
-                    ]
-                ]
-            ]
+                        'estimated_time' => '40-80 นาที',
+                    ],
+                ],
+            ],
         ]);
     }
 
@@ -70,7 +70,7 @@ class DeliveryPriceController extends Controller
         $request->validate([
             'district_name' => 'required|string',
             'company' => 'required|in:grab,lalamove',
-            'vehicle_type' => 'required|in:motorcycle,car'
+            'vehicle_type' => 'required|in:motorcycle,car',
         ]);
 
         $price = DeliveryPrice::getDeliveryPrice(
@@ -83,7 +83,7 @@ class DeliveryPriceController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Delivery price not found',
-                'data' => null
+                'data' => null,
             ], 404);
         }
 
@@ -94,8 +94,8 @@ class DeliveryPriceController extends Controller
                 'district_name' => $request->district_name,
                 'company' => $request->company,
                 'vehicle_type' => $request->vehicle_type,
-                'price' => $price
-            ]
+                'price' => $price,
+            ],
         ]);
     }
 
@@ -112,7 +112,7 @@ class DeliveryPriceController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Available districts retrieved successfully',
-            'data' => $districts
+            'data' => $districts,
         ]);
     }
 
@@ -122,12 +122,12 @@ class DeliveryPriceController extends Controller
     public function getDeliveryOptionsByProvince($provinceName, $districtName)
     {
         $options = DeliveryPriceByDistrict::getDeliveryOptions($provinceName, $districtName);
-        
-        if (!$options) {
+
+        if (! $options) {
             return response()->json([
                 'success' => false,
                 'message' => 'District not found in this province',
-                'data' => null
+                'data' => null,
             ], 404);
         }
 
@@ -143,31 +143,31 @@ class DeliveryPriceController extends Controller
                         'vehicle_type' => 'motorcycle',
                         'price' => $options['grab_motorcycle'],
                         'display_name' => 'Grab - มอเตอร์ไซค์',
-                        'estimated_time' => '30-60 นาที'
+                        'estimated_time' => '30-60 นาที',
                     ],
                     [
                         'company' => 'grab',
                         'vehicle_type' => 'car',
                         'price' => $options['grab_car'],
                         'display_name' => 'Grab - รถยนต์',
-                        'estimated_time' => '45-90 นาที'
+                        'estimated_time' => '45-90 นาที',
                     ],
                     [
                         'company' => 'lalamove',
                         'vehicle_type' => 'motorcycle',
                         'price' => $options['lalamove_motorcycle'],
                         'display_name' => 'Lalamove - มอเตอร์ไซค์',
-                        'estimated_time' => '25-50 นาที'
+                        'estimated_time' => '25-50 นาที',
                     ],
                     [
                         'company' => 'lalamove',
                         'vehicle_type' => 'car',
                         'price' => $options['lalamove_car'],
                         'display_name' => 'Lalamove - รถยนต์',
-                        'estimated_time' => '40-80 นาที'
-                    ]
-                ]
-            ]
+                        'estimated_time' => '40-80 นาที',
+                    ],
+                ],
+            ],
         ]);
     }
 
@@ -181,7 +181,7 @@ class DeliveryPriceController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Available provinces retrieved successfully',
-            'data' => $provinces
+            'data' => $provinces,
         ]);
     }
 
@@ -195,7 +195,7 @@ class DeliveryPriceController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Districts retrieved successfully',
-            'data' => $districts
+            'data' => $districts,
         ]);
     }
 
@@ -206,7 +206,7 @@ class DeliveryPriceController extends Controller
     {
         $request->validate([
             'location_name' => 'required|string',
-            'province_name' => 'nullable|string'
+            'province_name' => 'nullable|string',
         ]);
 
         $locationName = $request->location_name;
@@ -219,12 +219,12 @@ class DeliveryPriceController extends Controller
         ]);
 
         $options = DeliveryPrice::getUnifiedDeliveryOptions($locationName, $provinceName);
-        
-        if (!$options) {
+
+        if (! $options) {
             return response()->json([
                 'success' => false,
                 'message' => 'Location not found',
-                'data' => null
+                'data' => null,
             ], 404);
         }
 
@@ -240,31 +240,31 @@ class DeliveryPriceController extends Controller
                         'vehicle_type' => 'motorcycle',
                         'price' => $options['grab_motorcycle'],
                         'display_name' => 'Grab - มอเตอร์ไซค์',
-                        'estimated_time' => '30-60 นาที'
+                        'estimated_time' => '30-60 นาที',
                     ],
                     [
                         'company' => 'grab',
                         'vehicle_type' => 'car',
                         'price' => $options['grab_car'],
                         'display_name' => 'Grab - รถยนต์',
-                        'estimated_time' => '45-90 นาที'
+                        'estimated_time' => '45-90 นาที',
                     ],
                     [
                         'company' => 'lalamove',
                         'vehicle_type' => 'motorcycle',
                         'price' => $options['lalamove_motorcycle'],
                         'display_name' => 'Lalamove - มอเตอร์ไซค์',
-                        'estimated_time' => '25-50 นาที'
+                        'estimated_time' => '25-50 นาที',
                     ],
                     [
                         'company' => 'lalamove',
                         'vehicle_type' => 'car',
                         'price' => $options['lalamove_car'],
                         'display_name' => 'Lalamove - รถยนต์',
-                        'estimated_time' => '40-80 นาที'
-                    ]
-                ]
-            ]
+                        'estimated_time' => '40-80 นาที',
+                    ],
+                ],
+            ],
         ]);
     }
 }

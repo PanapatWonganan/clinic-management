@@ -430,37 +430,37 @@ Switch ครอบทุก enum case แล้ว แต่ยังมี `de
 
 ## 🟢 LOW
 
-### [ ] L1. `withOpacity` deprecated (47 จุด)
+### [x] L1. `withOpacity` deprecated (47 จุด)
 แทนด้วย `.withValues(alpha: x)` ตามที่ analyzer แนะนำ — ไม่กระทบ runtime แต่จะถูกลบใน Flutter version ถัดไป
 
-### [ ] L2. `prefer_const_constructors` (4 จุด)
+### [x] L2. `prefer_const_constructors` (4 จุด)
 สอบลด rebuild cost เล็กน้อย — `const` constructor ที่หาย
 
-### [ ] L3. Unused import `redeem_free_items_screen.dart` ใน `checkout_screen.dart:24`
+### [x] L3. Unused import `redeem_free_items_screen.dart` ใน `checkout_screen.dart:24`
 ลบทิ้ง
 
-### [ ] L4. `non_constant_identifier_names` `_removed_showNewOrderFreeItemDialog` ที่ `checkout_screen.dart:1534`
+### [x] L4. `non_constant_identifier_names` `_removed_showNewOrderFreeItemDialog` ที่ `checkout_screen.dart:1534`
 ชื่อตัวแปร snake_case ไม่ตรง convention Dart — เปลี่ยนเป็น camelCase
 
-### [ ] L5. `_isLoading`, `_districts`, `_subDistricts` — unused fields
+### [x] L5. `_isLoading`, `_districts`, `_subDistricts` — unused fields
 - `lib/screens/profile_edit_screen.dart:28` (`_isLoading`)
 - `lib/services/thai_address_service.dart:16, 18` (`_districts`, `_subDistricts`)
 
-### [ ] L6. Pint style issues (82 ไฟล์)
+### [x] L6. Pint style issues (82 ไฟล์)
 รัน `./vendor/bin/pint` ก็จะ fix อัตโนมัติ — ไม่กระทบ behavior
 
 ### [x] L7. `lib/screens/profile_edit_screen.dart:65` `district` local variable unused
 ลบทิ้งหรือใช้
 
-### [ ] L8. `clinic-backend/app/Http/Controllers/CartController.php` เป็น empty stub
+### [x] L8. `clinic-backend/app/Http/Controllers/CartController.php` เป็น empty stub
 ลบทิ้ง หรือ comment ระบุว่ายังไม่ implement (และ remove จาก autoload ถ้าไม่ใช้)
 
-### [ ] L9. Hardcoded API base URL `http://10.0.2.2:8000` ใน `ProductController` image URL replacement
+### [x] L9. Hardcoded API base URL `http://10.0.2.2:8000` ใน `ProductController` image URL replacement
 **ไฟล์:** `clinic-backend/app/Http/Controllers/ProductController.php:40-42, 76-78, 102-104`
 
 **ทำไมเป็น bug:** logic แทน URL จาก dev emulator → ไม่ควรอยู่ใน production controller. ถ้าจะ rewrite ควรทำผ่าน accessor บน Product model ตามค่า env ไม่ใช่ string match
 
-### [ ] L10. Production hostname mismatch — `app_config.dart` thai address path ใช้ `/test/address`
+### [x] L10. Production hostname mismatch — `app_config.dart` thai address path ใช้ `/test/address`
 **ไฟล์:** `lib/constants/app_config.dart:32`
 
 **ทำไมเป็น bug:** prefix `/test/` ดูเหมือน dev — ควรย้ายไป `/api/address` หรือ path ที่เป็น production-grade

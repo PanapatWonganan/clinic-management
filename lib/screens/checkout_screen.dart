@@ -20,8 +20,6 @@ import '../widgets/payment_method_card.dart';
 import '../widgets/membership_progress_card.dart';
 import 'payment_pending_screen.dart';
 import 'payment_webview_screen.dart';
-import 'profile_edit_screen.dart';
-import 'redeem_free_items_screen.dart';
 
 class CheckoutScreen extends StatefulWidget {
   final List<CheckoutItem> cartItems;
@@ -1239,7 +1237,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               color: Colors.white,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
+                  color: Colors.black.withValues(alpha: 0.1),
                   spreadRadius: 0,
                   blurRadius: 4,
                   offset: const Offset(0, -2),
@@ -1299,7 +1297,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         borderRadius: BorderRadius.circular(15),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
+            color: Colors.grey.withValues(alpha: 0.1),
             spreadRadius: 1,
             blurRadius: 8,
             offset: const Offset(0, 2),
@@ -1365,7 +1363,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           // Divider
           Container(
             height: 1,
-            color: AppColors.lightGray.withOpacity(0.3),
+            color: AppColors.lightGray.withValues(alpha: 0.3),
           ),
 
           const SizedBox(height: 16),
@@ -1405,7 +1403,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         children: [
           Row(
             children: [
-              Icon(Icons.redeem, color: AppColors.mainPink),
+              const Icon(Icons.redeem, color: AppColors.mainPink),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
@@ -1441,346 +1439,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     );
   }
 
-  // (unused) Legacy popup kept for reference — กลายเป็น home-side popup แล้ว
-  // ignore: unused_element
-  Future<void> _removed_showNewOrderFreeItemDialog() async {
-    final quota = freeItemsCount;
-    if (quota <= 0) return;
-
-    // snapshot ตัวเลือกปัจจุบันเข้า dialog
-    final Map<int, Map<String, dynamic>> picked = {
-      for (final item in newOrderFreeItems)
-        item['product_id'] as int: Map<String, dynamic>.from(item),
-    };
-
-    List<Map<String, dynamic>> products = [];
-    bool loading = true;
-    String? loadError;
-
-    await showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (sheetCtx) {
-        return StatefulBuilder(
-          builder: (sheetCtx, setSheetState) {
-            if (loading && loadError == null) {
-              ApiService.get('/redeemable-products').then((response) {
-                if (!sheetCtx.mounted) return;
-                if (response.statusCode == 200) {
-                  final data = json.decode(response.body);
-                  if (data['success'] == true) {
-                    setSheetState(() {
-                      products = List<Map<String, dynamic>>.from(data['data'] ?? []);
-                      loading = false;
-                    });
-                    return;
-                  }
-                }
-                setSheetState(() {
-                  loadError = 'ไม่สามารถโหลดรายการของแถมได้';
-                  loading = false;
-                });
-              }).catchError((e) {
-                if (!sheetCtx.mounted) return;
-                setSheetState(() {
-                  loadError = 'เกิดข้อผิดพลาด: $e';
-                  loading = false;
-                });
-              });
-            }
-
-            final pickedTotal = picked.values
-                .fold<int>(0, (sum, it) => sum + ((it['quantity'] ?? 0) as int));
-            final remaining = quota - pickedTotal;
-
-            return Container(
-              height: MediaQuery.of(sheetCtx).size.height * 0.8,
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.only(
-                  topLeft: Radius.circular(24),
-                  topRight: Radius.circular(24),
-                ),
-              ),
-              child: Column(
-                children: [
-                  // Handle
-                  Container(
-                    width: 40,
-                    height: 4,
-                    margin: const EdgeInsets.symmetric(vertical: 12),
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade300,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                  // Header
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: Row(
-                      children: [
-                        Icon(Icons.redeem, color: AppColors.mainPink),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'เลือกของแถม $quota ชิ้น',
-                                style: AppTextStyles.heading16Medium.copyWith(
-                                  color: AppColors.mainPink,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                'เลือกแล้ว $pickedTotal/$quota ชิ้น',
-                                style: AppTextStyles.caption10.copyWith(
-                                  color: AppColors.purpleText,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        IconButton(
-                          onPressed: () => Navigator.pop(sheetCtx),
-                          icon: const Icon(Icons.close),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const Divider(height: 1),
-                  // Body
-                  Expanded(
-                    child: loading
-                        ? const Center(child: CircularProgressIndicator())
-                        : loadError != null
-                            ? Center(
-                                child: Padding(
-                                  padding: const EdgeInsets.all(24),
-                                  child: Text(
-                                    loadError!,
-                                    style: AppTextStyles.body14Medium,
-                                    textAlign: TextAlign.center,
-                                  ),
-                                ),
-                              )
-                            : products.isEmpty
-                                ? const Center(child: Text('ไม่มีสินค้าให้เลือก'))
-                                : ListView.separated(
-                                    padding: const EdgeInsets.all(16),
-                                    itemCount: products.length,
-                                    separatorBuilder: (_, __) =>
-                                        const SizedBox(height: 8),
-                                    itemBuilder: (ctx, i) {
-                                      final p = products[i];
-                                      final pid = p['id'] as int;
-                                      final qty =
-                                          (picked[pid]?['quantity'] ?? 0) as int;
-                                      final stock = (p['stock'] ?? 0) as int;
-
-                                      return Container(
-                                        padding: const EdgeInsets.all(12),
-                                        decoration: BoxDecoration(
-                                          color: qty > 0
-                                              ? AppColors.mainPink.withValues(alpha: 0.05)
-                                              : Colors.grey.shade50,
-                                          borderRadius: BorderRadius.circular(12),
-                                          border: Border.all(
-                                            color: qty > 0
-                                                ? AppColors.mainPink
-                                                : Colors.grey.shade200,
-                                          ),
-                                        ),
-                                        child: Row(
-                                          children: [
-                                            Container(
-                                              width: 56,
-                                              height: 56,
-                                              decoration: BoxDecoration(
-                                                color: Colors.grey.shade100,
-                                                borderRadius:
-                                                    BorderRadius.circular(8),
-                                              ),
-                                              child: p['image_url'] != null
-                                                  ? ClipRRect(
-                                                      borderRadius:
-                                                          BorderRadius.circular(8),
-                                                      child: Image.network(
-                                                        p['image_url'],
-                                                        fit: BoxFit.cover,
-                                                        errorBuilder:
-                                                            (_, __, ___) =>
-                                                                Icon(
-                                                          Icons.card_giftcard,
-                                                          color: Colors
-                                                              .grey.shade400,
-                                                        ),
-                                                      ),
-                                                    )
-                                                  : Icon(
-                                                      Icons.card_giftcard,
-                                                      color:
-                                                          Colors.grey.shade400,
-                                                    ),
-                                            ),
-                                            const SizedBox(width: 12),
-                                            Expanded(
-                                              child: Column(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
-                                                children: [
-                                                  Text(
-                                                    p['name'] ?? '-',
-                                                    style: AppTextStyles
-                                                        .body14Medium
-                                                        .copyWith(
-                                                      fontWeight: FontWeight.w600,
-                                                    ),
-                                                  ),
-                                                  Text(
-                                                    'คงเหลือ $stock ชิ้น',
-                                                    style: AppTextStyles.caption10
-                                                        .copyWith(
-                                                      color: Colors.grey.shade600,
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                            // Quantity controls
-                                            Row(
-                                              children: [
-                                                IconButton(
-                                                  onPressed: qty <= 0
-                                                      ? null
-                                                      : () {
-                                                          setSheetState(() {
-                                                            final next = qty - 1;
-                                                            if (next <= 0) {
-                                                              picked.remove(pid);
-                                                            } else {
-                                                              picked[pid] = {
-                                                                'product_id': pid,
-                                                                'name': p['name'],
-                                                                'image': p['image_url'],
-                                                                'quantity': next,
-                                                              };
-                                                            }
-                                                          });
-                                                        },
-                                                  icon: Icon(
-                                                    Icons.remove_circle_outline,
-                                                    color: qty <= 0
-                                                        ? Colors.grey.shade300
-                                                        : AppColors.mainPink,
-                                                  ),
-                                                ),
-                                                SizedBox(
-                                                  width: 24,
-                                                  child: Text(
-                                                    '$qty',
-                                                    style: AppTextStyles
-                                                        .body14Medium
-                                                        .copyWith(
-                                                      fontWeight: FontWeight.w600,
-                                                    ),
-                                                    textAlign: TextAlign.center,
-                                                  ),
-                                                ),
-                                                IconButton(
-                                                  onPressed: remaining <= 0 ||
-                                                          qty >= stock
-                                                      ? null
-                                                      : () {
-                                                          setSheetState(() {
-                                                            picked[pid] = {
-                                                              'product_id': pid,
-                                                              'name': p['name'],
-                                                              'image':
-                                                                  p['image_url'],
-                                                              'quantity': qty + 1,
-                                                            };
-                                                          });
-                                                        },
-                                                  icon: Icon(
-                                                    Icons.add_circle_outline,
-                                                    color: (remaining <= 0 ||
-                                                            qty >= stock)
-                                                        ? Colors.grey.shade300
-                                                        : AppColors.mainPink,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ],
-                                        ),
-                                      );
-                                    },
-                                  ),
-                  ),
-                  // Confirm footer
-                  SafeArea(
-                    top: false,
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: OutlinedButton(
-                              onPressed: () => Navigator.pop(sheetCtx),
-                              style: OutlinedButton.styleFrom(
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 14),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                              ),
-                              child: const Text('ยกเลิก'),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            flex: 2,
-                            child: ElevatedButton(
-                              onPressed: () {
-                                setState(() {
-                                  newOrderFreeItems = picked.values
-                                      .map((it) =>
-                                          Map<String, dynamic>.from(it))
-                                      .toList();
-                                });
-                                Navigator.pop(sheetCtx);
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.mainPink,
-                                foregroundColor: Colors.white,
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 14),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                              ),
-                              child: Text(
-                                pickedTotal == 0
-                                    ? 'ยืนยัน (ไม่เลือก)'
-                                    : 'ยืนยัน ($pickedTotal ชิ้น)',
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
 
   // UI แสดงสิทธิ์ของแถมที่มีอยู่และเลือกเพิ่มในออเดอร์
   Widget _buildExistingRewardsSection() {
@@ -2245,7 +1903,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     color: Colors.white,
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.grey.withOpacity(0.1),
+                        color: Colors.grey.withValues(alpha: 0.1),
                         blurRadius: 10,
                         offset: const Offset(0, -2),
                       ),

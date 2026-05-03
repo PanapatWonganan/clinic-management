@@ -2,11 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules\Password;
-use App\Models\User;
 
 class AuthController extends Controller
 {
@@ -32,13 +32,13 @@ class AuthController extends Controller
                     'name' => $user->name,
                     'email' => $user->email,
                     'created_at' => $user->created_at,
-                ]
+                ],
             ]);
         }
 
         return response()->json([
             'success' => false,
-            'message' => 'ข้อมูลเข้าสู่ระบบไม่ถูกต้อง'
+            'message' => 'ข้อมูลเข้าสู่ระบบไม่ถูกต้อง',
         ], 401);
     }
 
@@ -71,7 +71,7 @@ class AuthController extends Controller
                 'email' => $user->email,
                 'phone' => $user->phone,
                 'created_at' => $user->created_at,
-            ]
+            ],
         ], 201);
     }
 
@@ -81,7 +81,7 @@ class AuthController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'ออกจากระบบสำเร็จ'
+            'message' => 'ออกจากระบบสำเร็จ',
         ]);
     }
 }

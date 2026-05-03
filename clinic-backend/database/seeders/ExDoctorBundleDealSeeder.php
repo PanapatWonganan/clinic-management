@@ -2,10 +2,9 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
-use Illuminate\Database\Seeder;
-use App\Models\Role;
 use App\Models\MembershipBundleDeal;
+use App\Models\Role;
+use Illuminate\Database\Seeder;
 
 class ExDoctorBundleDealSeeder extends Seeder
 {
@@ -17,8 +16,9 @@ class ExDoctorBundleDealSeeder extends Seeder
         // Get ex_doctor role
         $exDoctorRole = Role::where('name', 'ex_doctor')->first();
 
-        if (!$exDoctorRole) {
+        if (! $exDoctorRole) {
             $this->command->error('ex_doctor role not found! Please run RoleSeeder first.');
+
             return;
         }
 
@@ -79,7 +79,7 @@ class ExDoctorBundleDealSeeder extends Seeder
             MembershipBundleDeal::updateOrCreate(
                 [
                     'role_id' => $deal['role_id'],
-                    'level' => $deal['level']
+                    'level' => $deal['level'],
                 ],
                 $deal
             );

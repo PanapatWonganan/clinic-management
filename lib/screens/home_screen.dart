@@ -940,7 +940,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     child: Row(
                       children: [
-                        Icon(Icons.redeem, color: AppColors.mainPink),
+                        const Icon(Icons.redeem, color: AppColors.mainPink),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Column(

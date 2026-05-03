@@ -23,13 +23,14 @@ return Application::configure(basePath: dirname(__DIR__))
             if ($request->is('api/*') || $request->expectsJson()) {
                 return null;
             }
+
             return route('admin.login');
         });
 
         // ปิด CSRF protection สำหรับ API routes และ admin login
         $middleware->validateCsrfTokens(except: [
             'api/*',
-            'admin/login'
+            'admin/login',
         ]);
 
         // เปิดใช้งาน CORS สำหรับ API

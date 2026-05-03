@@ -3,10 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Models\FreeItemRedemption;
-use App\Models\UserClaimedReward;
-use App\Models\Product;
 use App\Models\Order;
 use App\Models\OrderItem;
+use App\Models\Product;
+use App\Models\UserClaimedReward;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -29,6 +29,7 @@ class FreeItemRedemptionController extends Controller
                 ->get()
                 ->map(function ($reward) {
                     $remaining = $reward->earned_free_items - $reward->redeemed_free_items;
+
                     return [
                         'id' => $reward->id,
                         'level' => $reward->level,
@@ -55,14 +56,14 @@ class FreeItemRedemptionController extends Controller
                         'total_earned' => $totalEarned,
                         'total_redeemed' => $totalRedeemed,
                         'total_remaining' => $totalRemaining,
-                    ]
-                ]
+                    ],
+                ],
             ]);
 
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error fetching rewards: ' . $e->getMessage()
+                'message' => 'Error fetching rewards: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -111,13 +112,13 @@ class FreeItemRedemptionController extends Controller
                         'can_redeem' => $remaining > 0,
                     ],
                     'redemptions' => $redemptions,
-                ]
+                ],
             ]);
 
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Reward not found'
+                'message' => 'Reward not found',
             ], 404);
         }
     }
@@ -145,7 +146,7 @@ class FreeItemRedemptionController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Validation failed',
-                'errors' => $validator->errors()
+                'errors' => $validator->errors(),
             ], 422);
         }
 
@@ -157,7 +158,7 @@ class FreeItemRedemptionController extends Controller
 
             // ถ้าไม่มี shipping_address_id ให้ใช้ default address
             $shippingAddressId = $request->shipping_address_id;
-            if (!$shippingAddressId) {
+            if (! $shippingAddressId) {
                 $defaultAddress = $user->getDefaultAddress();
                 if ($defaultAddress) {
                     $shippingAddressId = $defaultAddress->id;
@@ -183,7 +184,7 @@ class FreeItemRedemptionController extends Controller
                 if ($totalQuantity > $totalRemaining) {
                     return response()->json([
                         'success' => false,
-                        'message' => "จำนวนที่ต้องการแลก ($totalQuantity) มากกว่าจำนวนที่เหลือ ($totalRemaining)"
+                        'message' => "จำนวนที่ต้องการแลก ($totalQuantity) มากกว่าจำนวนที่เหลือ ($totalRemaining)",
                     ], 422);
                 }
 
@@ -191,7 +192,7 @@ class FreeItemRedemptionController extends Controller
                 foreach ($request->items as $item) {
                     $product = Product::find($item['product_id']);
                     if ($product) {
-                        if (!\App\Services\StockService::tryDecrement($product->id, (int) $item['quantity'])) {
+                        if (! \App\Services\StockService::tryDecrement($product->id, (int) $item['quantity'])) {
                             throw new \Exception("สินค้า {$product->name} มี stock ไม่เพียงพอ (เหลือ {$product->fresh()->stock} ชิ้น)");
                         }
                     }
@@ -199,10 +200,14 @@ class FreeItemRedemptionController extends Controller
                     // หาว่าจะหักจาก reward ไหน (FIFO)
                     $itemQtyRemaining = $item['quantity'];
                     foreach ($rewards as $reward) {
-                        if ($itemQtyRemaining <= 0) break;
+                        if ($itemQtyRemaining <= 0) {
+                            break;
+                        }
 
                         $rewardRemaining = $reward->earned_free_items - $reward->redeemed_free_items;
-                        if ($rewardRemaining <= 0) continue;
+                        if ($rewardRemaining <= 0) {
+                            continue;
+                        }
 
                         $qtyToDeduct = min($itemQtyRemaining, $rewardRemaining);
 
@@ -235,7 +240,7 @@ class FreeItemRedemptionController extends Controller
                 }
 
                 // ถ้าไม่มี claimed_reward_id หรือหาไม่เจอ ให้ลองใช้ reward_level
-                if (!$reward && $request->reward_level) {
+                if (! $reward && $request->reward_level) {
                     // หา claimed_reward ที่มีอยู่แล้วสำหรับ level นี้
                     $reward = UserClaimedReward::where('user_id', $user->id)
                         ->where('level', $request->reward_level)
@@ -244,17 +249,17 @@ class FreeItemRedemptionController extends Controller
                         ->first();
 
                     // ถ้ายังไม่มี ให้สร้างใหม่และ auto-approve
-                    if (!$reward) {
+                    if (! $reward) {
                         // ดึงข้อมูล membership progress เพื่อหา free_items ที่ได้
                         $membershipService = app(\App\Services\MembershipProgressService::class);
                         $progress = $membershipService->getMembershipProgress($user);
 
                         $levelData = collect($progress['available_rewards'] ?? [])->firstWhere('level', $request->reward_level);
 
-                        if (!$levelData) {
+                        if (! $levelData) {
                             return response()->json([
                                 'success' => false,
-                                'message' => "ไม่พบสิทธิ์สำหรับ Level {$request->reward_level}"
+                                'message' => "ไม่พบสิทธิ์สำหรับ Level {$request->reward_level}",
                             ], 422);
                         }
 
@@ -274,10 +279,10 @@ class FreeItemRedemptionController extends Controller
                     }
                 }
 
-                if (!$reward) {
+                if (! $reward) {
                     return response()->json([
                         'success' => false,
-                        'message' => 'claimed_reward_id หรือ reward_level is required for single reward redemption'
+                        'message' => 'claimed_reward_id หรือ reward_level is required for single reward redemption',
                     ], 422);
                 }
 
@@ -286,14 +291,14 @@ class FreeItemRedemptionController extends Controller
                 if ($totalQuantity > $remaining) {
                     return response()->json([
                         'success' => false,
-                        'message' => "จำนวนที่ต้องการแลก ($totalQuantity) มากกว่าจำนวนที่เหลือ ($remaining)"
+                        'message' => "จำนวนที่ต้องการแลก ($totalQuantity) มากกว่าจำนวนที่เหลือ ($remaining)",
                     ], 422);
                 }
 
                 foreach ($request->items as $item) {
                     $product = Product::find($item['product_id']);
                     if ($product) {
-                        if (!\App\Services\StockService::tryDecrement($product->id, (int) $item['quantity'])) {
+                        if (! \App\Services\StockService::tryDecrement($product->id, (int) $item['quantity'])) {
                             throw new \Exception("สินค้า {$product->name} มี stock ไม่เพียงพอ (เหลือ {$product->fresh()->stock} ชิ้น)");
                         }
                     }
@@ -338,7 +343,7 @@ class FreeItemRedemptionController extends Controller
                 'payment_method' => 'transfer',
                 'payment_status' => $deliveryFee > 0 ? 'pending' : 'paid',
                 'payment_slip_status' => $deliveryFee > 0 ? 'none' : 'approved',
-                'notes' => $request->notes ? $request->notes . " | ขนส่ง: $deliveryMethodDetail" : "ขนส่ง: $deliveryMethodDetail",
+                'notes' => $request->notes ? $request->notes." | ขนส่ง: $deliveryMethodDetail" : "ขนส่ง: $deliveryMethodDetail",
                 'is_free_item_order' => true, // flag บอกว่าเป็น order ของแถม
             ]);
 
@@ -381,14 +386,15 @@ class FreeItemRedemptionController extends Controller
                             'status' => $r->status,
                         ];
                     }),
-                ]
+                ],
             ], 201);
 
         } catch (\Exception $e) {
             DB::rollback();
+
             return response()->json([
                 'success' => false,
-                'message' => 'Error redeeming items: ' . $e->getMessage()
+                'message' => 'Error redeeming items: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -438,13 +444,13 @@ class FreeItemRedemptionController extends Controller
                     'last_page' => $redemptions->lastPage(),
                     'per_page' => $redemptions->perPage(),
                     'total' => $redemptions->total(),
-                ]
+                ],
             ]);
 
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error fetching history: ' . $e->getMessage()
+                'message' => 'Error fetching history: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -462,13 +468,13 @@ class FreeItemRedemptionController extends Controller
 
             return response()->json([
                 'success' => true,
-                'data' => $products
+                'data' => $products,
             ]);
 
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error fetching products: ' . $e->getMessage()
+                'message' => 'Error fetching products: '.$e->getMessage(),
             ], 500);
         }
     }

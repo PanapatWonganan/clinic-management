@@ -2,8 +2,8 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
 use App\Models\DeliveryPrice;
+use Illuminate\Database\Seeder;
 
 class DeliveryPriceSeeder extends Seeder
 {

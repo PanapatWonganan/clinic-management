@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
 use App\Models\Product;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
 class ProductController extends Controller
@@ -37,31 +37,49 @@ class ProductController extends Controller
             }
         }
 
-        // Transform image URLs to use current host with /api/storage path for CORS support
-        $baseUrl = request()->getSchemeAndHttpHost();
-        $products = $products->map(function ($product) use ($baseUrl) {
-            if ($product->image_url && str_starts_with($product->image_url, 'http://10.0.2.2:8000')) {
-                // Replace with /api/storage path which has CORS headers
-                $product->image_url = str_replace('http://10.0.2.2:8000/storage/', $baseUrl . '/api/storage/', $product->image_url);
-            }
-            return $product;
-        });
+        $products = $this->rewriteStoredImageUrls($products);
 
         return response()->json([
             'success' => true,
             'data' => $products,
-            'total' => $products->count()
+            'total' => $products->count(),
         ]);
     }
-    
+
+    /**
+     * Rewrite legacy `http://10.0.2.2:8000/storage/...` URLs (left over from
+     * Android emulator dev builds) to the current host's CORS-friendly
+     * `/api/storage/...` path. The hard-coded host used to live inline in
+     * three controller methods; collecting it here keeps the rule in one
+     * place and lets the configured legacy host be overridden via env if
+     * we ever pivot to a new dev URL.
+     */
+    private function rewriteStoredImageUrls($products)
+    {
+        $baseUrl = request()->getSchemeAndHttpHost();
+        $legacyHost = config('app.legacy_image_host', 'http://10.0.2.2:8000');
+
+        return $products->map(function ($product) use ($baseUrl, $legacyHost) {
+            if ($product->image_url && str_starts_with($product->image_url, $legacyHost)) {
+                $product->image_url = str_replace(
+                    $legacyHost.'/storage/',
+                    $baseUrl.'/api/storage/',
+                    $product->image_url
+                );
+            }
+
+            return $product;
+        });
+    }
+
     /**
      * Get main products (for home screen)
      */
     public function getMainProducts()
     {
         $products = Product::where('category', 'main')
-                          ->where('is_active', true)
-                          ->get();
+            ->where('is_active', true)
+            ->get();
 
         // Apply membership-based pricing if user is authenticated
         $user = auth('sanctum')->user();
@@ -76,69 +94,53 @@ class ProductController extends Controller
             }
         }
 
-        // Transform image URLs to use current host with /api/storage path for CORS support
-        $baseUrl = request()->getSchemeAndHttpHost();
-        $products = $products->map(function ($product) use ($baseUrl) {
-            if ($product->image_url && str_starts_with($product->image_url, 'http://10.0.2.2:8000')) {
-                // Replace with /api/storage path which has CORS headers
-                $product->image_url = str_replace('http://10.0.2.2:8000/storage/', $baseUrl . '/api/storage/', $product->image_url);
-            }
-            return $product;
-        });
+        $products = $this->rewriteStoredImageUrls($products);
 
         return response()->json([
             'success' => true,
             'data' => $products,
-            'total' => $products->count()
+            'total' => $products->count(),
         ]);
     }
-    
+
     /**
      * Get reward products
      */
     public function getRewardProducts()
     {
         $products = Product::where('category', 'reward')
-                          ->where('is_active', true)
-                          ->get();
+            ->where('is_active', true)
+            ->get();
 
-        // Transform image URLs to use current host with /api/storage path for CORS support
-        $baseUrl = request()->getSchemeAndHttpHost();
-        $products = $products->map(function ($product) use ($baseUrl) {
-            if ($product->image_url && str_starts_with($product->image_url, 'http://10.0.2.2:8000')) {
-                // Replace with /api/storage path which has CORS headers
-                $product->image_url = str_replace('http://10.0.2.2:8000/storage/', $baseUrl . '/api/storage/', $product->image_url);
-            }
-            return $product;
-        });
+        $products = $this->rewriteStoredImageUrls($products);
 
         return response()->json([
             'success' => true,
             'data' => $products,
-            'total' => $products->count()
+            'total' => $products->count(),
         ]);
     }
-    
+
     /**
      * Get single product
      */
     public function show($id)
     {
         $product = Product::where('is_active', true)->find($id);
-        
-        if (!$product) {
+
+        if (! $product) {
             return response()->json([
                 'success' => false,
-                'message' => 'Product not found'
+                'message' => 'Product not found',
             ], 404);
         }
-        
+
         return response()->json([
             'success' => true,
-            'data' => $product
+            'data' => $product,
         ]);
     }
-    
+
     /**
      * Update product stock
      */
@@ -157,10 +159,10 @@ class ProductController extends Controller
 
         $product = Product::find($id);
 
-        if (!$product) {
+        if (! $product) {
             return response()->json([
                 'success' => false,
-                'message' => 'Product not found'
+                'message' => 'Product not found',
             ], 404);
         }
 
@@ -169,7 +171,7 @@ class ProductController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Stock updated successfully',
-            'data' => $product
+            'data' => $product,
         ]);
     }
 
@@ -211,7 +213,7 @@ class ProductController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Product created successfully',
-            'data' => $product
+            'data' => $product,
         ], 201);
     }
 
@@ -222,10 +224,10 @@ class ProductController extends Controller
     {
         $product = Product::find($id);
 
-        if (!$product) {
+        if (! $product) {
             return response()->json([
                 'success' => false,
-                'message' => 'Product not found'
+                'message' => 'Product not found',
             ], 404);
         }
 
@@ -250,7 +252,7 @@ class ProductController extends Controller
 
         // Handle image upload — see store() for why hashName() is used.
         if ($request->hasFile('image')) {
-            if ($product->image_url && !str_starts_with($product->image_url, 'http')) {
+            if ($product->image_url && ! str_starts_with($product->image_url, 'http')) {
                 $oldPath = str_replace('/storage/', '', $product->image_url);
                 Storage::disk('public')->delete($oldPath);
             }
@@ -265,7 +267,7 @@ class ProductController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Product updated successfully',
-            'data' => $product
+            'data' => $product,
         ]);
     }
 
@@ -276,15 +278,15 @@ class ProductController extends Controller
     {
         $product = Product::find($id);
 
-        if (!$product) {
+        if (! $product) {
             return response()->json([
                 'success' => false,
-                'message' => 'Product not found'
+                'message' => 'Product not found',
             ], 404);
         }
 
         // Delete image if exists
-        if ($product->image_url && !str_starts_with($product->image_url, 'http')) {
+        if ($product->image_url && ! str_starts_with($product->image_url, 'http')) {
             $path = str_replace('/storage/', '', $product->image_url);
             Storage::disk('public')->delete($path);
         }
@@ -293,7 +295,7 @@ class ProductController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Product deleted successfully'
+            'message' => 'Product deleted successfully',
         ]);
     }
 }

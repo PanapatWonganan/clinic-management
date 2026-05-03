@@ -89,7 +89,7 @@ class Role extends Model
      */
     public function checkUpgradeEligibility(float $totalPurchaseAmount, int $totalPurchaseQuantity = 0): bool
     {
-        if (!$this->upgrades_to_role_id || !$this->auto_upgrade) {
+        if (! $this->upgrades_to_role_id || ! $this->auto_upgrade) {
             return false;
         }
 
@@ -111,10 +111,10 @@ class Role extends Model
      */
     public function getUpgradeProgress(float $totalPurchaseAmount, int $totalPurchaseQuantity = 0): array
     {
-        if (!$this->upgrades_to_role_id) {
+        if (! $this->upgrades_to_role_id) {
             return [
                 'can_upgrade' => false,
-                'message' => 'ไม่มีการอัพเกรดสำหรับระดับนี้'
+                'message' => 'ไม่มีการอัพเกรดสำหรับระดับนี้',
             ];
         }
 

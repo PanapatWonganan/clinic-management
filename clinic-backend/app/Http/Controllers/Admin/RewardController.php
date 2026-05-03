@@ -28,6 +28,7 @@ class RewardController extends Controller
     public function show($id)
     {
         $reward = UserClaimedReward::with(['user', 'approver'])->findOrFail($id);
+
         return view('admin.rewards.show', compact('reward'));
     }
 
@@ -35,7 +36,7 @@ class RewardController extends Controller
     {
         $request->validate([
             'status' => 'required|in:pending,approved,rejected',
-            'admin_notes' => 'nullable|string|max:1000'
+            'admin_notes' => 'nullable|string|max:1000',
         ]);
 
         $reward = UserClaimedReward::findOrFail($id);
@@ -43,7 +44,7 @@ class RewardController extends Controller
         if ($reward->status !== 'pending') {
             return response()->json([
                 'success' => false,
-                'message' => 'ไม่สามารถเปลี่ยนสถานะของรางวัลที่ได้รับการตอบกลับแล้ว'
+                'message' => 'ไม่สามารถเปลี่ยนสถานะของรางวัลที่ได้รับการตอบกลับแล้ว',
             ], 422);
         }
 
@@ -51,17 +52,17 @@ class RewardController extends Controller
             'status' => $request->status,
             'admin_notes' => $request->admin_notes,
             'approved_by' => Auth::id(),
-            'approved_at' => now()
+            'approved_at' => now(),
         ]);
 
         $statusMessages = [
             'approved' => 'อนุมัติการแลกรางวัลเรียบร้อยแล้ว',
-            'rejected' => 'ปฏิเสธการแลกรางวัลแล้ว'
+            'rejected' => 'ปฏิเสธการแลกรางวัลแล้ว',
         ];
 
         return response()->json([
             'success' => true,
-            'message' => $statusMessages[$request->status] ?? 'อัพเดตสถานะเรียบร้อยแล้ว'
+            'message' => $statusMessages[$request->status] ?? 'อัพเดตสถานะเรียบร้อยแล้ว',
         ]);
     }
 
@@ -72,7 +73,7 @@ class RewardController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'ลบรายการแลกรางวัลเรียบร้อยแล้ว'
+            'message' => 'ลบรายการแลกรางวัลเรียบร้อยแล้ว',
         ]);
     }
 
@@ -87,12 +88,12 @@ class RewardController extends Controller
                 'level_1' => UserClaimedReward::where('level', 1)->count(),
                 'level_2' => UserClaimedReward::where('level', 2)->count(),
                 'level_3' => UserClaimedReward::where('level', 3)->count(),
-            ]
+            ],
         ];
 
         return response()->json([
             'success' => true,
-            'data' => $stats
+            'data' => $stats,
         ]);
     }
 }

@@ -31,7 +31,7 @@ class AdminCustomerIndexQueryCountTest extends TestCase
         $this->actingAs($admin, 'web');
 
         DB::enableQueryLog();
-        $controller = new \App\Http\Controllers\Admin\CustomerController();
+        $controller = new \App\Http\Controllers\Admin\CustomerController;
         $request = \Illuminate\Http\Request::create('/admin/customers', 'GET');
         $request->setLaravelSession(app('session.store'));
         $controller->index($request); // returns view; rendering not invoked here

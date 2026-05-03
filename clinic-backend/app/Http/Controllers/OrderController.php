@@ -2,16 +2,16 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\SendTelegramNotification;
+use App\Models\FreeItemRedemption;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Product;
 use App\Models\UserClaimedReward;
-use App\Models\FreeItemRedemption;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
-use App\Jobs\SendTelegramNotification;
 
 class OrderController extends Controller
 {
@@ -22,21 +22,21 @@ class OrderController extends Controller
     {
         try {
             $user = Auth::user();
-            
+
             $orders = Order::with(['orderItems.product', 'deliveryProof'])
                 ->where('user_id', $user->id)
                 ->orderBy('created_at', 'desc')
                 ->paginate(10);
-            
+
             return response()->json([
                 'success' => true,
                 'data' => $orders,
-                'message' => 'Orders retrieved successfully'
+                'message' => 'Orders retrieved successfully',
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error retrieving orders: ' . $e->getMessage()
+                'message' => 'Error retrieving orders: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -82,7 +82,7 @@ class OrderController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Validation failed',
-                'errors' => $validator->errors()
+                'errors' => $validator->errors(),
             ], 422);
         }
 
@@ -94,14 +94,14 @@ class OrderController extends Controller
 
             // Handle shipping address
             $shippingAddressId = $request->shipping_address_id;
-            
+
             // If no shipping address provided, use user's default address
-            if (!$shippingAddressId && $request->delivery_method === 'delivery') {
+            if (! $shippingAddressId && $request->delivery_method === 'delivery') {
                 $defaultAddress = $user->getDefaultAddress();
-                if (!$defaultAddress) {
+                if (! $defaultAddress) {
                     return response()->json([
                         'success' => false,
-                        'message' => 'ไม่พบที่อยู่สำหรับจัดส่ง กรุณาเพิ่มที่อยู่ก่อน'
+                        'message' => 'ไม่พบที่อยู่สำหรับจัดส่ง กรุณาเพิ่มที่อยู่ก่อน',
                     ], 422);
                 }
                 $shippingAddressId = $defaultAddress->id;
@@ -110,10 +110,10 @@ class OrderController extends Controller
             // Validate shipping address belongs to user
             if ($shippingAddressId) {
                 $address = $user->customerAddresses()->find($shippingAddressId);
-                if (!$address) {
+                if (! $address) {
                     return response()->json([
                         'success' => false,
-                        'message' => 'ที่อยู่จัดส่งไม่ถูกต้อง'
+                        'message' => 'ที่อยู่จัดส่งไม่ถูกต้อง',
                     ], 422);
                 }
             }
@@ -127,7 +127,7 @@ class OrderController extends Controller
                 if ($product->stock < $item['quantity']) {
                     return response()->json([
                         'success' => false,
-                        'message' => "สินค้า {$product->name} มีสต็อกไม่เพียงพอ (เหลือ {$product->stock} ชิ้น)"
+                        'message' => "สินค้า {$product->name} มีสต็อกไม่เพียงพอ (เหลือ {$product->stock} ชิ้น)",
                     ], 422);
                 }
 
@@ -140,7 +140,7 @@ class OrderController extends Controller
                     'quantity' => $item['quantity'],
                     'unit_price' => $unitPrice,
                     'total_price' => $totalPrice,
-                    'product' => $product // For reference
+                    'product' => $product, // For reference
                 ];
             }
 
@@ -169,7 +169,7 @@ class OrderController extends Controller
                 'payment_method' => $request->payment_method,
                 'payment_status' => 'pending',
                 'payment_slip_status' => 'none',
-                'notes' => $request->notes
+                'notes' => $request->notes,
             ]);
 
             // Create order items (but DON'T reduce stock yet - wait for payment)
@@ -179,7 +179,7 @@ class OrderController extends Controller
                     'product_id' => $item['product_id'],
                     'quantity' => $item['quantity'],
                     'unit_price' => $item['unit_price'],
-                    'total_price' => $item['total_price']
+                    'total_price' => $item['total_price'],
                 ]);
 
                 // NOTE: Stock will be reduced when order status changes to 'paid'
@@ -234,21 +234,27 @@ class OrderController extends Controller
                 // สร้าง FreeItemRedemption records (FIFO)
                 foreach ($request->selected_free_items as $freeItem) {
                     $product = Product::find($freeItem['product_id']);
-                    if (!$product) continue;
+                    if (! $product) {
+                        continue;
+                    }
 
                     // Atomic decrement — rejects if another concurrent request
                     // already consumed the row.
-                    if (!\App\Services\StockService::tryDecrement($product->id, (int) $freeItem['quantity'])) {
+                    if (! \App\Services\StockService::tryDecrement($product->id, (int) $freeItem['quantity'])) {
                         throw new \Exception("สินค้าของแถม {$product->name} มี stock ไม่เพียงพอ");
                     }
 
                     // หักจาก rewards ตาม FIFO
                     $itemQtyRemaining = $freeItem['quantity'];
                     foreach ($rewards as $reward) {
-                        if ($itemQtyRemaining <= 0) break;
+                        if ($itemQtyRemaining <= 0) {
+                            break;
+                        }
 
                         $rewardRemaining = $reward->earned_free_items - $reward->redeemed_free_items;
-                        if ($rewardRemaining <= 0) continue;
+                        if ($rewardRemaining <= 0) {
+                            continue;
+                        }
 
                         $qtyToDeduct = min($itemQtyRemaining, $rewardRemaining);
 
@@ -295,15 +301,17 @@ class OrderController extends Controller
                     ->latest('id')
                     ->first();
 
-                if (!$newReward) {
+                if (! $newReward) {
                     throw new \Exception('ไม่พบ reward ของออเดอร์นี้');
                 }
 
                 foreach ($request->new_order_free_items as $freeItem) {
                     $product = Product::find($freeItem['product_id']);
-                    if (!$product) continue;
+                    if (! $product) {
+                        continue;
+                    }
 
-                    if (!\App\Services\StockService::tryDecrement($product->id, (int) $freeItem['quantity'])) {
+                    if (! \App\Services\StockService::tryDecrement($product->id, (int) $freeItem['quantity'])) {
                         throw new \Exception("สินค้าของแถม {$product->name} มี stock ไม่เพียงพอ");
                     }
 
@@ -341,14 +349,15 @@ class OrderController extends Controller
             return response()->json([
                 'success' => true,
                 'data' => $order,
-                'message' => 'Order created successfully'
+                'message' => 'Order created successfully',
             ], 201);
 
         } catch (\Exception $e) {
             DB::rollback();
+
             return response()->json([
                 'success' => false,
-                'message' => 'Error creating order: ' . $e->getMessage()
+                'message' => 'Error creating order: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -360,19 +369,19 @@ class OrderController extends Controller
     {
         try {
             $user = Auth::user();
-            
+
             $order = Order::with(['orderItems.product', 'deliveryProof'])
                 ->where('user_id', $user->id)
                 ->findOrFail($id);
-            
+
             return response()->json([
                 'success' => true,
-                'data' => $order
+                'data' => $order,
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Order not found'
+                'message' => 'Order not found',
             ], 404);
         }
     }
@@ -398,12 +407,12 @@ class OrderController extends Controller
                 ->findOrFail($id);
 
             // Can only cancel orders that haven't been paid yet
-            if (!in_array($order->status, [Order::STATUS_PENDING_PAYMENT, Order::STATUS_PAYMENT_UPLOADED])) {
+            if (! in_array($order->status, [Order::STATUS_PENDING_PAYMENT, Order::STATUS_PAYMENT_UPLOADED])) {
                 DB::rollBack();
 
                 return response()->json([
                     'success' => false,
-                    'message' => 'Cannot cancel order. Order status is ' . $order->status
+                    'message' => 'Cannot cancel order. Order status is '.$order->status,
                 ], 422);
             }
 
@@ -423,14 +432,15 @@ class OrderController extends Controller
             return response()->json([
                 'success' => true,
                 'data' => $order,
-                'message' => 'Order cancelled successfully'
+                'message' => 'Order cancelled successfully',
             ]);
 
         } catch (\Exception $e) {
             DB::rollback();
+
             return response()->json([
                 'success' => false,
-                'message' => 'Error cancelling order: ' . $e->getMessage()
+                'message' => 'Error cancelling order: '.$e->getMessage(),
             ], 500);
         }
     }

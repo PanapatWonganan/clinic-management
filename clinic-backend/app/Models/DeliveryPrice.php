@@ -27,8 +27,8 @@ class DeliveryPrice extends Model
     public static function getDeliveryPrice($districtName, $company, $vehicleType)
     {
         $delivery = self::where('district_name', $districtName)->first();
-        
-        if (!$delivery) {
+
+        if (! $delivery) {
             return null;
         }
 
@@ -39,8 +39,8 @@ class DeliveryPrice extends Model
             'lalamove_car' => 'lalamove_car_price',
         ];
 
-        $key = strtolower($company) . '_' . strtolower($vehicleType);
-        
+        $key = strtolower($company).'_'.strtolower($vehicleType);
+
         return $delivery->{$fieldMap[$key] ?? null} ?? null;
     }
 
@@ -50,8 +50,8 @@ class DeliveryPrice extends Model
     public static function getDeliveryOptions($districtName)
     {
         $delivery = self::where('district_name', $districtName)->first();
-        
-        if (!$delivery) {
+
+        if (! $delivery) {
             return null;
         }
 
@@ -72,7 +72,7 @@ class DeliveryPrice extends Model
         // Try different variations of location name for Bangkok districts
         $bangkokVariations = [
             $locationName,
-            'แขวง' . $locationName,
+            'แขวง'.$locationName,
             str_replace('แขวง', '', $locationName),
         ];
 
@@ -88,10 +88,10 @@ class DeliveryPrice extends Model
             // Try different variations for suburban districts
             $districtVariations = [
                 $locationName,
-                'อำเภอ' . $locationName,
+                'อำเภอ'.$locationName,
                 str_replace('อำเภอ', '', $locationName),
             ];
-            
+
             foreach ($districtVariations as $variation) {
                 $suburbanOptions = \App\Models\DeliveryPriceByDistrict::getDeliveryOptions($provinceName, $variation);
                 if ($suburbanOptions !== null) {

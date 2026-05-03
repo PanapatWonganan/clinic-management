@@ -2,9 +2,8 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
-use Illuminate\Database\Seeder;
 use App\Models\Role;
+use Illuminate\Database\Seeder;
 
 class MembershipUpgradeSeeder extends Seeder
 {
@@ -19,8 +18,9 @@ class MembershipUpgradeSeeder extends Seeder
         $exSupervip = Role::where('name', 'ex_supervip')->first();
         $exDoctor = Role::where('name', 'ex_doctor')->first();
 
-        if (!$exMember || !$exVip || !$exSupervip || !$exDoctor) {
+        if (! $exMember || ! $exVip || ! $exSupervip || ! $exDoctor) {
             $this->command->error('Some roles not found! Please run RoleSeeder first.');
+
             return;
         }
 

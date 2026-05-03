@@ -81,7 +81,7 @@ class PaymentController extends Controller
             }
 
             // Check if order can accept payment
-            if (!$order->needsPayment()) {
+            if (! $order->needsPayment()) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Order does not need payment or already paid',
@@ -109,7 +109,7 @@ class PaymentController extends Controller
                 [
                     'customerName' => $order->user->name ?? '',
                     'customerEmail' => $order->user->email ?? '',
-                    'productName' => 'Order #' . $order->order_number,
+                    'productName' => 'Order #'.$order->order_number,
                 ]
             );
 
@@ -158,7 +158,7 @@ class PaymentController extends Controller
         // callers flipping orders to "paid". The internal simulate flow goes
         // through processCallbackData() directly and never reaches this entry
         // point, so we can require a valid signature here unconditionally.
-        if (!$this->paymentService->verifyCallback($request->all())) {
+        if (! $this->paymentService->verifyCallback($request->all())) {
             Log::error('Invalid payment callback signature');
 
             return response()->json(['success' => false, 'message' => 'Invalid signature'], 400);
@@ -186,23 +186,24 @@ class PaymentController extends Controller
             // Locate payment — prefer exact transaction_id match, fall back to the
             // pending-by-order-number lookup so we don't retroactively mark an old success.
             $payment = null;
-            if (!empty($transactionId)) {
+            if (! empty($transactionId)) {
                 $payment = PaymentTransaction::where('transaction_id', $transactionId)->first();
             }
-            if (!$payment && !empty($orderId)) {
+            if (! $payment && ! empty($orderId)) {
                 $payment = PaymentTransaction::whereHas('order', function ($q) use ($orderId) {
-                        $q->where('order_number', $orderId);
-                    })
+                    $q->where('order_number', $orderId);
+                })
                     ->where('status', 'pending')
                     ->orderByDesc('id')
                     ->first();
             }
 
-            if (!$payment) {
+            if (! $payment) {
                 Log::error('Payment transaction not found', [
                     'transaction_id' => $transactionId,
                     'order_id' => $orderId,
                 ]);
+
                 return response()->json(['success' => false, 'message' => 'Transaction not found'], 404);
             }
 
@@ -214,6 +215,7 @@ class PaymentController extends Controller
                     'expected' => $payment->amount,
                     'received' => $amount,
                 ]);
+
                 return response()->json(['success' => false, 'message' => 'Amount mismatch'], 400);
             }
 
@@ -264,7 +266,7 @@ class PaymentController extends Controller
                 Log::warning('Payment gateway failed', [
                     'payment_id' => $payment->id,
                     'order_id' => $payment->order_id,
-                    'status' => $status
+                    'status' => $status,
                 ]);
             }
 
@@ -294,7 +296,7 @@ class PaymentController extends Controller
             // Ownership check — the route is behind auth:sanctum but didn't
             // verify that the payment belongs to the caller, leaking other
             // users' order/payment status to anyone who can enumerate ids.
-            if (!$payment->order || $payment->order->user_id !== auth()->id()) {
+            if (! $payment->order || $payment->order->user_id !== auth()->id()) {
                 return response()->json(['success' => false, 'message' => 'Forbidden'], 403);
             }
 
@@ -338,7 +340,7 @@ class PaymentController extends Controller
             // Ownership check — without this any logged-in user could trigger
             // verification (and the resulting Telegram dispatch + stock
             // reduction) on other users' orders.
-            if (!$payment->order || $payment->order->user_id !== auth()->id()) {
+            if (! $payment->order || $payment->order->user_id !== auth()->id()) {
                 return response()->json(['success' => false, 'message' => 'Forbidden'], 403);
             }
 
@@ -440,7 +442,7 @@ class PaymentController extends Controller
      */
     public function testPaymentPage($orderId)
     {
-        if (!$this->paymentService->isTestMode()) {
+        if (! $this->paymentService->isTestMode()) {
             abort(404);
         }
 
@@ -460,7 +462,7 @@ class PaymentController extends Controller
     public function simulatePayment(Request $request)
     {
         // Hard guard: never available on the production environment, regardless of test_mode flag.
-        if (app()->environment('production') || !$this->paymentService->isTestMode()) {
+        if (app()->environment('production') || ! $this->paymentService->isTestMode()) {
             abort(404);
         }
 
@@ -493,7 +495,7 @@ class PaymentController extends Controller
 
             // Simulate callback
             $callbackData = [
-                'transaction_id' => 'TEST_' . uniqid(),
+                'transaction_id' => 'TEST_'.uniqid(),
                 'order_id' => $request->order_id,
                 'status' => $request->status,
                 'amount' => $request->amount ?? 0,
@@ -514,7 +516,7 @@ class PaymentController extends Controller
 
             return response()->json([
                 'success' => false,
-                'message' => 'Simulation failed: ' . $e->getMessage(),
+                'message' => 'Simulation failed: '.$e->getMessage(),
             ], 500);
         }
     }

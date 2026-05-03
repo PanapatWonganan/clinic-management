@@ -19,11 +19,11 @@ class UserClaimedReward extends Model
         'status',
         'admin_notes',
         'approved_by',
-        'approved_at'
+        'approved_at',
     ];
 
     protected $casts = [
-        'approved_at' => 'datetime'
+        'approved_at' => 'datetime',
     ];
 
     public function user(): BelongsTo

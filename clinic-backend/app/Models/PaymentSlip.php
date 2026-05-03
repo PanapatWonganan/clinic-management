@@ -19,12 +19,12 @@ class PaymentSlip extends Model
         'status',
         'admin_notes',
         'reviewed_at',
-        'reviewed_by'
+        'reviewed_by',
     ];
 
     protected $casts = [
         'reviewed_at' => 'datetime',
-        'file_size' => 'integer'
+        'file_size' => 'integer',
     ];
 
     /**
@@ -51,7 +51,7 @@ class PaymentSlip extends Model
         $statuses = [
             'pending' => 'รอตรวจสอบ',
             'approved' => 'อนุมัติแล้ว',
-            'rejected' => 'ปฏิเสธ'
+            'rejected' => 'ปฏิเสธ',
         ];
 
         return $statuses[$this->status] ?? $this->status;
@@ -63,13 +63,13 @@ class PaymentSlip extends Model
     public function getFileSizeFormattedAttribute()
     {
         $bytes = $this->file_size;
-        
+
         if ($bytes < 1024) {
-            return $bytes . ' B';
+            return $bytes.' B';
         } elseif ($bytes < 1024 * 1024) {
-            return round($bytes / 1024, 2) . ' KB';
+            return round($bytes / 1024, 2).' KB';
         } else {
-            return round($bytes / (1024 * 1024), 2) . ' MB';
+            return round($bytes / (1024 * 1024), 2).' MB';
         }
     }
 

@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-use App\Models\Role;
 use App\Models\MembershipBundleDeal;
+use App\Models\Role;
+use Illuminate\Http\Request;
 
 class MembershipPricingController extends Controller
 {
@@ -21,13 +21,13 @@ class MembershipPricingController extends Controller
             return response()->json([
                 'success' => true,
                 'data' => $roles,
-                'message' => 'Membership roles retrieved successfully'
+                'message' => 'Membership roles retrieved successfully',
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to retrieve membership roles',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -42,10 +42,10 @@ class MembershipPricingController extends Controller
                 $query->orderBy('level');
             }])->find($roleId);
 
-            if (!$role) {
+            if (! $role) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Role not found'
+                    'message' => 'Role not found',
                 ], 404);
             }
 
@@ -53,15 +53,15 @@ class MembershipPricingController extends Controller
                 'success' => true,
                 'data' => [
                     'role' => $role,
-                    'bundle_deals' => $role->activeBundleDeals
+                    'bundle_deals' => $role->activeBundleDeals,
                 ],
-                'message' => 'Bundle deals retrieved successfully'
+                'message' => 'Bundle deals retrieved successfully',
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to retrieve bundle deals',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -73,7 +73,7 @@ class MembershipPricingController extends Controller
     {
         $request->validate([
             'role_id' => 'required|exists:roles,id',
-            'quantity' => 'required|integer|min:1'
+            'quantity' => 'required|integer|min:1',
         ]);
 
         try {
@@ -83,7 +83,7 @@ class MembershipPricingController extends Controller
             $role = Role::find($roleId);
             $calculation = MembershipBundleDeal::calculateBestDeal($roleId, $quantity);
 
-            if (!$calculation) {
+            if (! $calculation) {
                 // No bundle deal available, use regular pricing
                 $unitPrice = 2500.00; // Default unit price
                 $totalPrice = $quantity * $unitPrice;
@@ -97,8 +97,8 @@ class MembershipPricingController extends Controller
                         'total_price' => $totalPrice,
                         'total_savings' => 0,
                         'has_bundle_deal' => false,
-                        'message' => 'Regular pricing applied - no bundle deals available'
-                    ]
+                        'message' => 'Regular pricing applied - no bundle deals available',
+                    ],
                 ]);
             }
 
@@ -117,15 +117,15 @@ class MembershipPricingController extends Controller
                         'total_savings' => $calculation['total_savings'],
                         'bundles_applied' => $calculation['bundles_count'],
                         'bundle_deal' => $calculation['bundle_deal']->display_name,
-                    ]
+                    ],
                 ],
-                'message' => 'Pricing calculated with bundle deals'
+                'message' => 'Pricing calculated with bundle deals',
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to calculate pricing',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -140,10 +140,10 @@ class MembershipPricingController extends Controller
                 $query->orderBy('level');
             }])->find($roleId);
 
-            if (!$role) {
+            if (! $role) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Role not found'
+                    'message' => 'Role not found',
                 ], 404);
             }
 
@@ -179,15 +179,15 @@ class MembershipPricingController extends Controller
                     ],
                     'pricing_tiers' => $tiers,
                     'currency' => 'THB',
-                    'unit_name' => 'กล่อง'
+                    'unit_name' => 'กล่อง',
                 ],
-                'message' => 'Pricing tiers retrieved successfully'
+                'message' => 'Pricing tiers retrieved successfully',
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to retrieve pricing tiers',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }

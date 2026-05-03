@@ -2,12 +2,12 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
-use App\Models\User;
-use App\Models\Product;
 use App\Models\Order;
 use App\Models\OrderItem;
+use App\Models\Product;
+use App\Models\User;
 use Carbon\Carbon;
+use Illuminate\Database\Seeder;
 
 class OrderSeeder extends Seeder
 {
@@ -18,6 +18,7 @@ class OrderSeeder extends Seeder
 
         if ($users->isEmpty() || $products->isEmpty()) {
             echo "Please seed users and products first\n";
+
             return;
         }
 
@@ -28,8 +29,8 @@ class OrderSeeder extends Seeder
 
             for ($j = 0; $j < $ordersCount; $j++) {
                 $user = $users->random();
-                $orderNumber = 'ORD-' . $date->format('Ymd') . '-' . str_pad($j + 1, 3, '0', STR_PAD_LEFT);
-                
+                $orderNumber = 'ORD-'.$date->format('Ymd').'-'.str_pad($j + 1, 3, '0', STR_PAD_LEFT);
+
                 $order = Order::create([
                     'order_number' => $orderNumber,
                     'user_id' => $user->id,

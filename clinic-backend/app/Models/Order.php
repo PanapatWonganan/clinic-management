@@ -2,9 +2,9 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use App\Jobs\SendTelegramNotification;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 
 class Order extends Model
 {
@@ -81,12 +81,19 @@ class Order extends Model
 
     // Status constants for better code readability
     const STATUS_PENDING_PAYMENT = 'pending_payment';
+
     const STATUS_PAYMENT_UPLOADED = 'payment_uploaded';
+
     const STATUS_PAID = 'paid';
+
     const STATUS_CONFIRMED = 'confirmed';
+
     const STATUS_PROCESSING = 'processing';
+
     const STATUS_SHIPPED = 'shipped';
+
     const STATUS_DELIVERED = 'delivered';
+
     const STATUS_CANCELLED = 'cancelled';
 
     // Get status display name in Thai
@@ -111,7 +118,7 @@ class Order extends Model
     {
         return in_array($this->status, [
             self::STATUS_PENDING_PAYMENT,
-            self::STATUS_PAYMENT_UPLOADED
+            self::STATUS_PAYMENT_UPLOADED,
         ]);
     }
 
@@ -123,7 +130,7 @@ class Order extends Model
             self::STATUS_CONFIRMED,
             self::STATUS_PROCESSING,
             self::STATUS_SHIPPED,
-            self::STATUS_DELIVERED
+            self::STATUS_DELIVERED,
         ]);
     }
 
@@ -136,7 +143,7 @@ class Order extends Model
     protected static function booted()
     {
         static::updated(function ($order) {
-            if (!$order->isDirty('status')) {
+            if (! $order->isDirty('status')) {
                 return;
             }
             $oldStatus = $order->getOriginal('status');
@@ -168,14 +175,14 @@ class Order extends Model
 
         foreach ($this->orderItems as $item) {
             $product = $item->product;
-            if (!$product) {
+            if (! $product) {
                 continue;
             }
 
             // Atomic conditional decrement — prevents two concurrent paid orders
             // from both reading "stock >= qty" and then double-spending the row.
             $ok = \App\Services\StockService::tryDecrement($product->id, (int) $item->quantity);
-            if (!$ok) {
+            if (! $ok) {
                 \Log::warning("Insufficient stock for product {$product->id}. Required: {$item->quantity}, Available: {$product->fresh()->stock}");
 
                 continue;

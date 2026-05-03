@@ -21,12 +21,12 @@ class CustomerAddressController extends Controller
             return response()->json([
                 'success' => true,
                 'data' => $addresses,
-                'message' => 'Addresses retrieved successfully'
+                'message' => 'Addresses retrieved successfully',
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error retrieving addresses: ' . $e->getMessage()
+                'message' => 'Error retrieving addresses: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -37,13 +37,13 @@ class CustomerAddressController extends Controller
     public function store(Request $request)
     {
         $user = Auth::user();
-        
+
         // Check address limit (max 3)
         $addressCount = $user->customerAddresses()->count();
         if ($addressCount >= 3) {
             return response()->json([
                 'success' => false,
-                'message' => 'คุณสามารถเพิ่มที่อยู่ได้สูงสุด 3 แห่งเท่านั้น'
+                'message' => 'คุณสามารถเพิ่มที่อยู่ได้สูงสุด 3 แห่งเท่านั้น',
             ], 422);
         }
 
@@ -59,41 +59,41 @@ class CustomerAddressController extends Controller
             'province_id' => 'required|integer',
             'district_id' => 'required|integer',
             'sub_district_id' => 'required|integer',
-            'is_default' => 'boolean'
+            'is_default' => 'boolean',
         ]);
 
         if ($validator->fails()) {
             return response()->json([
                 'success' => false,
                 'message' => 'Validation failed',
-                'errors' => $validator->errors()
+                'errors' => $validator->errors(),
             ], 422);
         }
 
         try {
             $addressData = $validator->validated();
-            
+
             // If this is the first address or explicitly set as default, make it default
             $isDefault = $request->boolean('is_default') || $addressCount === 0;
-            
+
             if ($isDefault) {
                 $address = CustomerAddress::createDefault($user->id, $addressData);
             } else {
                 $address = CustomerAddress::create(array_merge($addressData, [
                     'user_id' => $user->id,
-                    'is_default' => false
+                    'is_default' => false,
                 ]));
             }
 
             return response()->json([
                 'success' => true,
                 'data' => $address,
-                'message' => 'Address created successfully'
+                'message' => 'Address created successfully',
             ], 201);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error creating address: ' . $e->getMessage()
+                'message' => 'Error creating address: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -111,12 +111,12 @@ class CustomerAddressController extends Controller
 
             return response()->json([
                 'success' => true,
-                'data' => $address
+                'data' => $address,
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Address not found'
+                'message' => 'Address not found',
             ], 404);
         }
     }
@@ -137,14 +137,14 @@ class CustomerAddressController extends Controller
             'postal_code' => 'required|string|max:10',
             'province_id' => 'required|integer',
             'district_id' => 'required|integer',
-            'sub_district_id' => 'required|integer'
+            'sub_district_id' => 'required|integer',
         ]);
 
         if ($validator->fails()) {
             return response()->json([
                 'success' => false,
                 'message' => 'Validation failed',
-                'errors' => $validator->errors()
+                'errors' => $validator->errors(),
             ], 422);
         }
 
@@ -159,12 +159,12 @@ class CustomerAddressController extends Controller
             return response()->json([
                 'success' => true,
                 'data' => $address,
-                'message' => 'Address updated successfully'
+                'message' => 'Address updated successfully',
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error updating address: ' . $e->getMessage()
+                'message' => 'Error updating address: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -186,7 +186,7 @@ class CustomerAddressController extends Controller
                 $nextAddress = $user->customerAddresses()
                     ->where('id', '!=', $id)
                     ->first();
-                    
+
                 if ($nextAddress) {
                     CustomerAddress::setAsDefault($user->id, $nextAddress->id);
                 }
@@ -196,7 +196,7 @@ class CustomerAddressController extends Controller
             if ($user->customerAddresses()->count() === 1) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'ไม่สามารถลบที่อยู่ได้ เนื่องจากต้องมีที่อยู่อย่างน้อย 1 แห่ง'
+                    'message' => 'ไม่สามารถลบที่อยู่ได้ เนื่องจากต้องมีที่อยู่อย่างน้อย 1 แห่ง',
                 ], 422);
             }
 
@@ -204,12 +204,12 @@ class CustomerAddressController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Address deleted successfully'
+                'message' => 'Address deleted successfully',
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error deleting address: ' . $e->getMessage()
+                'message' => 'Error deleting address: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -229,12 +229,12 @@ class CustomerAddressController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Default address updated successfully'
+                'message' => 'Default address updated successfully',
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error setting default address: ' . $e->getMessage()
+                'message' => 'Error setting default address: '.$e->getMessage(),
             ], 500);
         }
     }

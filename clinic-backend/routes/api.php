@@ -1,15 +1,15 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
-use App\Http\Controllers\ProfileController;
-use App\Http\Controllers\ProductController;
-use App\Http\Controllers\OrderController;
 use App\Http\Controllers\CustomerAddressController;
 use App\Http\Controllers\DeliveryPriceController;
-use App\Http\Controllers\MembershipPricingController;
-use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\FreeItemRedemptionController;
+use App\Http\Controllers\MembershipPricingController;
+use App\Http\Controllers\OrderController;
+use App\Http\Controllers\PaymentController;
+use App\Http\Controllers\ProductController;
+use App\Http\Controllers\ProfileController;
+use Illuminate\Support\Facades\Route;
 
 // Authentication routes (rate-limited to deter brute force)
 Route::middleware('throttle:10,1')->group(function () {
@@ -55,12 +55,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/orders', [OrderController::class, 'store']);
     Route::get('/orders/{id}', [OrderController::class, 'show']);
     Route::put('/orders/{id}/cancel', [OrderController::class, 'cancel']);
-    
+
     // Payment slip routes
     Route::post('/payment-slips/upload', [\App\Http\Controllers\PaymentSlipController::class, 'uploadSlips']);
     Route::get('/orders/{orderId}/payment-slips', [\App\Http\Controllers\PaymentSlipController::class, 'getSlips']);
     Route::delete('/payment-slips/{slipId}', [\App\Http\Controllers\PaymentSlipController::class, 'deleteSlip']);
-    
+
     // Customer address routes
     Route::apiResource('addresses', CustomerAddressController::class);
     Route::put('/addresses/{id}/set-default', [CustomerAddressController::class, 'setDefault']);
@@ -86,12 +86,12 @@ Route::prefix('delivery')->group(function () {
     Route::get('/districts', [DeliveryPriceController::class, 'getAvailableDistricts']);
     Route::get('/options/{districtName}', [DeliveryPriceController::class, 'getDeliveryOptions']);
     Route::post('/price', [DeliveryPriceController::class, 'getDeliveryPrice']);
-    
+
     // Suburban provinces (ปริมณฑล)
     Route::get('/provinces', [DeliveryPriceController::class, 'getAvailableProvinces']);
     Route::get('/provinces/{provinceName}/districts', [DeliveryPriceController::class, 'getDistrictsByProvince']);
     Route::get('/provinces/{provinceName}/districts/{districtName}/options', [DeliveryPriceController::class, 'getDeliveryOptionsByProvince']);
-    
+
     // Unified search (ค้นหารวม)
     Route::post('/unified-options', [DeliveryPriceController::class, 'getUnifiedDeliveryOptions']);
 });
@@ -107,10 +107,10 @@ Route::prefix('membership')->group(function () {
 // Serve storage files with CORS headers (workaround for Laravel serve)
 Route::get('/storage/{path}', function (string $path) {
     $publicDir = realpath(storage_path('app/public'));
-    $filePath = realpath(storage_path('app/public/' . $path));
+    $filePath = realpath(storage_path('app/public/'.$path));
 
     // Reject if resolution failed or path escapes the public storage dir
-    if (!$publicDir || !$filePath || !str_starts_with($filePath, $publicDir . DIRECTORY_SEPARATOR)) {
+    if (! $publicDir || ! $filePath || ! str_starts_with($filePath, $publicDir.DIRECTORY_SEPARATOR)) {
         abort(404);
     }
 
@@ -128,7 +128,7 @@ Route::get('/storage/{path}', function (string $path) {
 Route::post('/payment/callback', [PaymentController::class, 'handleCallback']);
 
 // Test payment simulation — only exposed outside production
-if (!app()->environment('production')) {
+if (! app()->environment('production')) {
     Route::post('/payment/simulate', [PaymentController::class, 'simulatePayment']);
     Route::get('/test', function () {
         return response()->json(['message' => 'API is working!', 'timestamp' => now()]);
