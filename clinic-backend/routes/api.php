@@ -16,7 +16,10 @@ Route::middleware('throttle:10,1')->group(function () {
     Route::post('/auth/login', [AuthController::class, 'login']);
     Route::post('/auth/register', [AuthController::class, 'register']);
 });
-Route::post('/auth/logout', [AuthController::class, 'logout'])->middleware('auth:sanctum');
+// Same throttle as login/register so a leaked token cannot be used to
+// hammer the endpoint and revoke the user's other sessions in bulk.
+Route::post('/auth/logout', [AuthController::class, 'logout'])
+    ->middleware(['auth:sanctum', 'throttle:30,1']);
 
 // Profile routes
 Route::middleware('auth:sanctum')->group(function () {

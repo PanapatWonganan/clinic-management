@@ -207,7 +207,7 @@ $upgradeRule = DB::table('membership_upgrade_rules')
 
 ---
 
-### [ ] H7. Logout ไม่มี throttle → revoke token ของคนอื่นได้ถ้ารู้ token
+### [x] H7. Logout ไม่มี throttle → revoke token ของคนอื่นได้ถ้ารู้ token
 **ไฟล์:** `clinic-backend/routes/api.php:19`
 
 **ทำไมเป็น bug:**
