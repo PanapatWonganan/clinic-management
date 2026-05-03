@@ -31,16 +31,19 @@ class PaymentWebViewScreen extends StatefulWidget {
   State<PaymentWebViewScreen> createState() => _PaymentWebViewScreenState();
 }
 
-class _PaymentWebViewScreenState extends State<PaymentWebViewScreen> {
+class _PaymentWebViewScreenState extends State<PaymentWebViewScreen>
+    with WidgetsBindingObserver {
   late final WebViewController _controller;
   bool _isLoading = true;
   bool _isCheckingStatus = false;
   String? _errorMessage;
   Timer? _pollTimer;
+  bool _isAppForegrounded = true;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
 
     if (kIsWeb) {
       // For web, don't auto-open (browsers block popups)
@@ -55,8 +58,24 @@ class _PaymentWebViewScreenState extends State<PaymentWebViewScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _pollTimer?.cancel();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Pause the polling timer while the app is backgrounded so we don't
+    // burn battery / bandwidth / rate limit when the user can't see the
+    // result anyway. Resume on the next foreground.
+    final wasForegrounded = _isAppForegrounded;
+    _isAppForegrounded = state == AppLifecycleState.resumed;
+    if (!_isAppForegrounded && wasForegrounded) {
+      _pollTimer?.cancel();
+      _pollTimer = null;
+    } else if (_isAppForegrounded && !wasForegrounded && kIsWeb) {
+      _startStatusPolling();
+    }
   }
 
   void _initializeWebView() {

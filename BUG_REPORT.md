@@ -330,7 +330,7 @@ $imageName = time() . '_' . $image->getClientOriginalName();
 
 ---
 
-### [ ] M6. Frontend `payment_webview_screen.dart` — Timer poll ทำงานอยู่แม้ใน background
+### [x] M6. Frontend `payment_webview_screen.dart` — Timer poll ทำงานอยู่แม้ใน background
 **ไฟล์:** `lib/screens/payment_webview_screen.dart:368-382`
 
 **ทำไมเป็น bug:**
