@@ -12,6 +12,13 @@ return new class extends Migration
      */
     public function up(): void
     {
+        // Skip if the ex_vip role hasn't been seeded yet (e.g., fresh test
+        // database). The roles seeder will populate later; if those rows
+        // never exist there is nothing to update.
+        if (!DB::table('roles')->where('id', 2)->exists()) {
+            return;
+        }
+
         // Update exVip bundle deals with new values
         // Role ID 2 = ex_vip
 
@@ -133,6 +140,9 @@ return new class extends Migration
      */
     public function down(): void
     {
+        if (!DB::table('roles')->where('id', 2)->exists()) {
+            return;
+        }
         // Restore original exVip bundle deals if needed
         DB::table('membership_bundle_deals')->where('role_id', 2)->delete();
 

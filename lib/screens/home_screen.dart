@@ -1,7 +1,9 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_text_styles.dart';
+import '../services/api_service.dart';
 import '../models/product_category.dart';
 import '../models/checkout_item.dart';
 import '../models/membership_level.dart';
@@ -18,6 +20,7 @@ import 'profile_screen.dart';
 import 'checkout_screen.dart';
 import 'rewards_screen.dart';
 import 'order_history_screen.dart';
+import 'my_free_items_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -36,6 +39,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   List<ProductCategory> productCategories = [];
   List<MembershipLevel> membershipLevels = [];
   Map<String, dynamic>? membershipProgressData;
+
+  // ── Reward selection for the current (unsaved) order ───────────────────────
+  // _pendingReward is a snapshot from level_progress for the highest level that
+  // (currentQty + previewQty) has unlocked; null when no reward is available.
+  // _pendingFreeItems holds the user's in-memory picks from the home popup —
+  // nothing is persisted until checkout POSTs the order.
+  Map<String, dynamic>? _pendingReward;
+  List<Map<String, dynamic>> _pendingFreeItems = [];
+  int? _lastPendingRewardLevel;
 
   @override
   void initState() {
@@ -146,6 +158,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ];
         }
         isLoadingMembership = false;
+        _recomputePendingReward();
       });
     } catch (e) {
       debugPrint('Error loading membership progress: $e');
@@ -189,6 +202,16 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         // Already on home
         break;
       case 1:
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const MyFreeItemsScreen()),
+        ).then((_) {
+          setState(() {
+            _selectedIndex = 0;
+          });
+        });
+        break;
+      case 2:
         final cartItems = _getCartItems();
         if (cartItems.isNotEmpty) {
           Navigator.push(
@@ -196,6 +219,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             MaterialPageRoute(
               builder: (context) => CheckoutScreen(
                 cartItems: cartItems,
+                appliedReward: _pendingReward,
+                membershipData: membershipProgressData,
+                preselectedNewOrderFreeItems: _pendingFreeItems,
                 onOrderCreated: _clearCart,
               ),
             ),
@@ -209,7 +235,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           });
         }
         break;
-      case 2:
+      case 3:
         Navigator.push(
           context,
           MaterialPageRoute(builder: (context) => const OrderHistoryScreen()),
@@ -220,7 +246,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           });
         });
         break;
-      case 3:
+      case 4:
         Navigator.push(
           context,
           MaterialPageRoute(builder: (context) => const RewardsScreen()),
@@ -265,6 +291,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       if (index != -1) {
         productCategories[index].quantity++;
       }
+      _recomputePendingReward();
     });
   }
 
@@ -274,6 +301,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       if (index != -1 && productCategories[index].quantity > 0) {
         productCategories[index].quantity--;
       }
+      _recomputePendingReward();
     });
   }
 
@@ -283,6 +311,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       if (index != -1) {
         productCategories[index].quantity = quantity < 0 ? 0 : quantity;
       }
+      _recomputePendingReward();
     });
   }
 
@@ -292,10 +321,103 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       for (var category in productCategories) {
         category.quantity = 0;
       }
+      _pendingReward = null;
+      _pendingFreeItems = [];
+      _lastPendingRewardLevel = null;
     });
     // Reload membership data to reflect new order
     _loadMembershipProgress();
   }
+
+  // Recompute which reward level is unlocked by (current + preview) quantity.
+  // Why: backend's available_rewards is based on effective_quantity only —
+  // it doesn't know about items still sitting in the cart. We mirror the
+  // same threshold logic on the client so the popup can fire as soon as the
+  // user crosses a level on the cart, before an order is placed.
+  void _recomputePendingReward() {
+    final levelProgress = membershipProgressData?['level_progress'] as List?;
+    if (levelProgress == null || levelProgress.isEmpty) {
+      _pendingReward = null;
+      _pendingFreeItems = [];
+      _lastPendingRewardLevel = null;
+      return;
+    }
+
+    final currentQty = _getCurrentQuantityFromMembership();
+    final previewQty = _getTotalItems().toDouble();
+    final totalQty = currentQty + previewQty;
+
+    // Pick the highest level whose required_quantity is met and which the
+    // user has not already claimed.
+    Map<String, dynamic>? best;
+    int bestLevel = 0;
+    for (final entry in levelProgress) {
+      final m = entry as Map<String, dynamic>;
+      final required = _parseNum(m['required_quantity']);
+      final level = (m['level'] is num) ? (m['level'] as num).toInt() : 0;
+      final alreadyCompleted = m['is_completed'] == true;
+      if (alreadyCompleted) continue;
+      if (totalQty >= required && level > bestLevel) {
+        best = m;
+        bestLevel = level;
+      }
+    }
+
+    if (best == null) {
+      _pendingReward = null;
+      _pendingFreeItems = [];
+      _lastPendingRewardLevel = null;
+      return;
+    }
+
+    final newLevel = bestLevel;
+    final oldLevel = _lastPendingRewardLevel;
+    final newQuota = _parseNum(best['free_quantity']).toInt();
+
+    if (oldLevel == null || newLevel > oldLevel) {
+      // Level unlocked or raised — keep prior picks but truncate to new quota.
+      _pendingFreeItems = _truncateFreeItems(_pendingFreeItems, newQuota);
+    } else if (newLevel < oldLevel) {
+      // Level dropped (user removed boxes) — clear selections; they'd likely
+      // exceed the new (smaller) quota anyway.
+      _pendingFreeItems = [];
+    }
+
+    _pendingReward = best;
+    _lastPendingRewardLevel = newLevel;
+  }
+
+  double _parseNum(dynamic v) {
+    if (v is num) return v.toDouble();
+    return double.tryParse(v?.toString() ?? '') ?? 0;
+  }
+
+  List<Map<String, dynamic>> _truncateFreeItems(
+      List<Map<String, dynamic>> items, int quota) {
+    int taken = 0;
+    final out = <Map<String, dynamic>>[];
+    for (final item in items) {
+      final q = (item['quantity'] ?? 0) as int;
+      if (taken + q <= quota) {
+        out.add(Map<String, dynamic>.from(item));
+        taken += q;
+      } else {
+        final room = quota - taken;
+        if (room > 0) {
+          out.add({...item, 'quantity': room});
+          taken = quota;
+        }
+        break;
+      }
+    }
+    return out;
+  }
+
+  int get _pendingFreeItemQuota =>
+      _pendingReward == null ? 0 : _parseNum(_pendingReward!['free_quantity']).toInt();
+
+  int get _pendingFreeItemPicked =>
+      _pendingFreeItems.fold<int>(0, (s, it) => s + ((it['quantity'] ?? 0) as int));
 
   double _calculateTotalPrice() {
     return productCategories.fold(0.0, (total, category) {
@@ -566,6 +688,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               onClaim: _onClaimReward,
               onApplyToCart: _onApplyRewardToCart,
               onRewardClaimed: _loadMembershipProgress, // reload data หลังแลกรางวัล
+              onRedeemCheckboxChanged: _onRedeemCheckboxChanged,
               cartQuantity: _getTotalItems(),
               currentQuantity: _getCurrentQuantityFromMembership(),
               levelProgress: membershipProgressData?['level_progress'],
@@ -702,6 +825,416 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 
+  // Fires when the RewardCard checkbox is toggled.
+  // Returns the checkbox state the card should settle on.
+  Future<bool> _onRedeemCheckboxChanged(bool checked) async {
+    if (!checked) {
+      // Unchecking always clears in-memory selections.
+      setState(() {
+        _pendingFreeItems = [];
+      });
+      return false;
+    }
+
+    // RewardCard computes its own "available reward" from level_progress,
+    // which can include levels the cart alone hasn't reached yet (it's
+    // based on effective_quantity from the server). The picker, though,
+    // needs a quota — if the cart hasn't crossed any level, there's
+    // nothing to pick, so warn and keep the box unchecked.
+    if (_pendingReward == null || _pendingFreeItemQuota <= 0) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('กรุณาเลือกสินค้าในตะกร้าให้ถึง level ก่อน'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+      return false;
+    }
+
+    // Checking opens the picker. If the user confirms, we keep the box
+    // checked; if they cancel or pick zero items, revert it so the UI
+    // reflects that no selection was made.
+    final confirmed = await _showFreeItemRedeemSheet();
+    return confirmed;
+  }
+
+  // Bottom sheet: pick free items up to the unlocked quota.
+  // Selections are kept in home-screen state only (no API writes) and then
+  // passed to CheckoutScreen via preselectedNewOrderFreeItems on navigation.
+  // Returns true if the user confirmed at least one pick.
+  Future<bool> _showFreeItemRedeemSheet() async {
+    final quota = _pendingFreeItemQuota;
+    if (quota <= 0) return false;
+
+    // snapshot current picks into the sheet
+    final Map<int, Map<String, dynamic>> picked = {
+      for (final item in _pendingFreeItems)
+        item['product_id'] as int: Map<String, dynamic>.from(item),
+    };
+
+    List<Map<String, dynamic>> products = [];
+    bool loading = true;
+    String? loadError;
+    bool confirmed = false;
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetCtx) {
+        return StatefulBuilder(
+          builder: (sheetCtx, setSheetState) {
+            if (loading && loadError == null) {
+              ApiService.get('/redeemable-products').then((response) {
+                if (!sheetCtx.mounted) return;
+                if (response.statusCode == 200) {
+                  final data = json.decode(response.body);
+                  if (data['success'] == true) {
+                    setSheetState(() {
+                      products =
+                          List<Map<String, dynamic>>.from(data['data'] ?? []);
+                      loading = false;
+                    });
+                    return;
+                  }
+                }
+                setSheetState(() {
+                  loadError = 'ไม่สามารถโหลดรายการของแถมได้';
+                  loading = false;
+                });
+              }).catchError((e) {
+                if (!sheetCtx.mounted) return;
+                setSheetState(() {
+                  loadError = 'เกิดข้อผิดพลาด: $e';
+                  loading = false;
+                });
+              });
+            }
+
+            final pickedTotal = picked.values
+                .fold<int>(0, (s, it) => s + ((it['quantity'] ?? 0) as int));
+            final remaining = quota - pickedTotal;
+
+            return Container(
+              height: MediaQuery.of(sheetCtx).size.height * 0.8,
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(24),
+                  topRight: Radius.circular(24),
+                ),
+              ),
+              child: Column(
+                children: [
+                  Container(
+                    width: 40,
+                    height: 4,
+                    margin: const EdgeInsets.symmetric(vertical: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Row(
+                      children: [
+                        Icon(Icons.redeem, color: AppColors.mainPink),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'เลือกของแถม $quota ชิ้น',
+                                style:
+                                    AppTextStyles.heading16Medium.copyWith(
+                                  color: AppColors.mainPink,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                'เลือกแล้ว $pickedTotal/$quota ชิ้น',
+                                style: AppTextStyles.caption10.copyWith(
+                                  color: AppColors.purpleText,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        IconButton(
+                          onPressed: () => Navigator.pop(sheetCtx),
+                          icon: const Icon(Icons.close),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Divider(height: 1),
+                  Expanded(
+                    child: loading
+                        ? const Center(child: CircularProgressIndicator())
+                        : loadError != null
+                            ? Center(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(24),
+                                  child: Text(
+                                    loadError!,
+                                    style: AppTextStyles.body14Medium,
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ),
+                              )
+                            : products.isEmpty
+                                ? const Center(
+                                    child: Text('ไม่มีสินค้าให้เลือก'))
+                                : ListView.separated(
+                                    padding: const EdgeInsets.all(16),
+                                    itemCount: products.length,
+                                    separatorBuilder: (_, __) =>
+                                        const SizedBox(height: 8),
+                                    itemBuilder: (ctx, i) {
+                                      final p = products[i];
+                                      final pid = p['id'] as int;
+                                      final qty =
+                                          (picked[pid]?['quantity'] ?? 0)
+                                              as int;
+                                      final stock = (p['stock'] ?? 0) as int;
+
+                                      return Container(
+                                        padding: const EdgeInsets.all(12),
+                                        decoration: BoxDecoration(
+                                          color: qty > 0
+                                              ? AppColors.mainPink
+                                                  .withValues(alpha: 0.05)
+                                              : Colors.grey.shade50,
+                                          borderRadius:
+                                              BorderRadius.circular(12),
+                                          border: Border.all(
+                                            color: qty > 0
+                                                ? AppColors.mainPink
+                                                : Colors.grey.shade200,
+                                          ),
+                                        ),
+                                        child: Row(
+                                          children: [
+                                            Container(
+                                              width: 56,
+                                              height: 56,
+                                              decoration: BoxDecoration(
+                                                color: Colors.grey.shade100,
+                                                borderRadius:
+                                                    BorderRadius.circular(8),
+                                              ),
+                                              child: p['image_url'] != null
+                                                  ? ClipRRect(
+                                                      borderRadius:
+                                                          BorderRadius
+                                                              .circular(8),
+                                                      child: Image.network(
+                                                        p['image_url'],
+                                                        fit: BoxFit.cover,
+                                                        errorBuilder:
+                                                            (_, __, ___) =>
+                                                                Icon(
+                                                          Icons.card_giftcard,
+                                                          color: Colors
+                                                              .grey.shade400,
+                                                        ),
+                                                      ),
+                                                    )
+                                                  : Icon(
+                                                      Icons.card_giftcard,
+                                                      color: Colors
+                                                          .grey.shade400,
+                                                    ),
+                                            ),
+                                            const SizedBox(width: 12),
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    p['name'] ?? '-',
+                                                    style: AppTextStyles
+                                                        .body14Medium
+                                                        .copyWith(
+                                                      fontWeight:
+                                                          FontWeight.w600,
+                                                    ),
+                                                  ),
+                                                  Text(
+                                                    'คงเหลือ $stock ชิ้น',
+                                                    style: AppTextStyles
+                                                        .caption10
+                                                        .copyWith(
+                                                      color: Colors
+                                                          .grey.shade600,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                            Row(
+                                              children: [
+                                                IconButton(
+                                                  onPressed: qty <= 0
+                                                      ? null
+                                                      : () {
+                                                          setSheetState(() {
+                                                            final next =
+                                                                qty - 1;
+                                                            if (next <= 0) {
+                                                              picked
+                                                                  .remove(pid);
+                                                            } else {
+                                                              picked[pid] = {
+                                                                'product_id':
+                                                                    pid,
+                                                                'name':
+                                                                    p['name'],
+                                                                'image': p[
+                                                                    'image_url'],
+                                                                'quantity':
+                                                                    next,
+                                                              };
+                                                            }
+                                                          });
+                                                        },
+                                                  icon: Icon(
+                                                    Icons
+                                                        .remove_circle_outline,
+                                                    color: qty <= 0
+                                                        ? Colors
+                                                            .grey.shade300
+                                                        : AppColors.mainPink,
+                                                  ),
+                                                ),
+                                                SizedBox(
+                                                  width: 24,
+                                                  child: Text(
+                                                    '$qty',
+                                                    style: AppTextStyles
+                                                        .body14Medium
+                                                        .copyWith(
+                                                      fontWeight:
+                                                          FontWeight.w600,
+                                                    ),
+                                                    textAlign:
+                                                        TextAlign.center,
+                                                  ),
+                                                ),
+                                                IconButton(
+                                                  onPressed:
+                                                      remaining <= 0 ||
+                                                              qty >= stock
+                                                          ? null
+                                                          : () {
+                                                              setSheetState(
+                                                                  () {
+                                                                picked[pid] =
+                                                                    {
+                                                                  'product_id':
+                                                                      pid,
+                                                                  'name': p[
+                                                                      'name'],
+                                                                  'image': p[
+                                                                      'image_url'],
+                                                                  'quantity':
+                                                                      qty + 1,
+                                                                };
+                                                              });
+                                                            },
+                                                  icon: Icon(
+                                                    Icons.add_circle_outline,
+                                                    color: (remaining <= 0 ||
+                                                            qty >= stock)
+                                                        ? Colors
+                                                            .grey.shade300
+                                                        : AppColors.mainPink,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                    },
+                                  ),
+                  ),
+                  SafeArea(
+                    top: false,
+                    child: Padding(
+                      padding:
+                          const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton(
+                              onPressed: () => Navigator.pop(sheetCtx),
+                              style: OutlinedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(
+                                    vertical: 14),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                              child: const Text('ยกเลิก'),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            flex: 2,
+                            child: ElevatedButton(
+                              onPressed: pickedTotal == 0
+                                  ? null
+                                  : () {
+                                      setState(() {
+                                        _pendingFreeItems = picked.values
+                                            .map((it) =>
+                                                Map<String, dynamic>.from(it))
+                                            .toList();
+                                      });
+                                      confirmed = true;
+                                      Navigator.pop(sheetCtx);
+                                    },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.mainPink,
+                                foregroundColor: Colors.white,
+                                disabledBackgroundColor:
+                                    AppColors.mainPink.withValues(alpha: 0.4),
+                                disabledForegroundColor:
+                                    Colors.white.withValues(alpha: 0.8),
+                                padding: const EdgeInsets.symmetric(
+                                    vertical: 14),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                              child: Text(
+                                pickedTotal == 0
+                                    ? 'เลือกของแถมก่อน'
+                                    : 'ยืนยัน ($pickedTotal ชิ้น)',
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+    return confirmed;
+  }
+
   Widget _buildPaymentButton() {
     final totalPrice = _calculateTotalPrice();
     final totalItems = _getTotalItems();
@@ -719,6 +1252,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   MaterialPageRoute(
                     builder: (context) => CheckoutScreen(
                       cartItems: cartItems,
+                      appliedReward: _pendingReward,
+                      membershipData: membershipProgressData,
+                      preselectedNewOrderFreeItems: _pendingFreeItems,
                       onOrderCreated: _clearCart,
                     ),
                   ),

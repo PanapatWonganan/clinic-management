@@ -15,6 +15,22 @@ return new class extends Migration
      */
     public function up(): void
     {
+        // SQLite cannot DROP FOREIGN KEY / DROP INDEX with this MySQL syntax
+        // and tests boot a fresh schema where this constraint may not exist
+        // anyway. Use Schema::table for portability when possible; otherwise
+        // skip on non-MySQL drivers.
+        if (DB::getDriverName() !== 'mysql') {
+            Schema::table('user_claimed_rewards', function (Blueprint $table) {
+                try {
+                    $table->dropUnique(['user_id', 'level', 'reward_type']);
+                } catch (\Throwable $e) {
+                    // index may not exist on fresh test DB
+                }
+            });
+
+            return;
+        }
+
         // Step 1: Drop the foreign key constraint on user_id first (it uses the unique index)
         DB::statement('ALTER TABLE user_claimed_rewards DROP FOREIGN KEY user_claimed_rewards_user_id_foreign');
 

@@ -37,19 +37,24 @@ class CustomBottomNavigation extends StatelessWidget {
               index: 0,
             ),
             _buildNavItem(
+              icon: Icons.redeem,
+              label: 'ของแถมของฉัน',
+              index: 1,
+            ),
+            _buildNavItem(
               icon: Icons.payment,
               label: 'ชำระเงิน',
-              index: 1,
+              index: 2,
             ),
             _buildNavItem(
               icon: Icons.history,
               label: 'ประวัติการซื้อ',
-              index: 2,
+              index: 3,
             ),
             _buildNavItem(
               icon: Icons.card_giftcard,
               label: 'รีวอร์ด',
-              index: 3,
+              index: 4,
             ),
           ],
         ),

@@ -191,10 +191,9 @@ class FreeItemRedemptionController extends Controller
                 foreach ($request->items as $item) {
                     $product = Product::find($item['product_id']);
                     if ($product) {
-                        if ($product->stock < $item['quantity']) {
-                            throw new \Exception("สินค้า {$product->name} มี stock ไม่เพียงพอ (เหลือ {$product->stock} ชิ้น)");
+                        if (!\App\Services\StockService::tryDecrement($product->id, (int) $item['quantity'])) {
+                            throw new \Exception("สินค้า {$product->name} มี stock ไม่เพียงพอ (เหลือ {$product->fresh()->stock} ชิ้น)");
                         }
-                        $product->decrement('stock', $item['quantity']);
                     }
 
                     // หาว่าจะหักจาก reward ไหน (FIFO)
@@ -294,10 +293,9 @@ class FreeItemRedemptionController extends Controller
                 foreach ($request->items as $item) {
                     $product = Product::find($item['product_id']);
                     if ($product) {
-                        if ($product->stock < $item['quantity']) {
-                            throw new \Exception("สินค้า {$product->name} มี stock ไม่เพียงพอ (เหลือ {$product->stock} ชิ้น)");
+                        if (!\App\Services\StockService::tryDecrement($product->id, (int) $item['quantity'])) {
+                            throw new \Exception("สินค้า {$product->name} มี stock ไม่เพียงพอ (เหลือ {$product->fresh()->stock} ชิ้น)");
                         }
-                        $product->decrement('stock', $item['quantity']);
                     }
 
                     $redemption = FreeItemRedemption::create([

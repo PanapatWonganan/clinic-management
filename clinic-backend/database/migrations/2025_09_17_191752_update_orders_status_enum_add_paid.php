@@ -12,7 +12,13 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // Add 'paid' to existing ENUM values
+        // SQLite (used by phpunit) cannot ALTER COLUMN to a new ENUM — and it
+        // has no native ENUM type anyway. Skip on non-MySQL drivers; the column
+        // is a plain string there and accepts any value the application writes.
+        if (DB::getDriverName() !== 'mysql') {
+            return;
+        }
+
         DB::statement("ALTER TABLE orders MODIFY COLUMN status ENUM('pending_payment', 'payment_uploaded', 'paid', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled') DEFAULT 'pending_payment'");
     }
 

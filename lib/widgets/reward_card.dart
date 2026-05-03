@@ -14,6 +14,11 @@ class RewardCard extends StatefulWidget {
   final List<dynamic>? levelProgress; // ข้อมูล level ทั้งหมด
   final double? productPrice; // ราคาสินค้าต่อชิ้น (default: 2500)
   final VoidCallback? onRewardClaimed; // callback เมื่อแลกรางวัลสำเร็จ (reload data)
+  // Fires when the user toggles the "แลกของแถม" checkbox — the parent uses
+  // this to open the free-item picker popup on check, and clear its pending
+  // selections on uncheck. Return value: whether the selection was confirmed
+  // (false → revert the checkbox, so the UI matches state).
+  final Future<bool> Function(bool checked)? onRedeemCheckboxChanged;
 
   const RewardCard({
     super.key,
@@ -25,6 +30,7 @@ class RewardCard extends StatefulWidget {
     this.levelProgress,
     this.productPrice,
     this.onRewardClaimed,
+    this.onRedeemCheckboxChanged,
   });
 
   @override
@@ -226,9 +232,26 @@ class _RewardCardState extends State<RewardCard> {
                       children: [
                         Checkbox(
                           value: isClaimSelected,
-                          onChanged: (value) {
+                          onChanged: (value) async {
+                            final next = value ?? false;
+
+                            // When a parent is wired to handle the popup flow
+                            // (home screen), delegate — we only flip the local
+                            // checkbox state after the parent confirms, so a
+                            // cancelled popup leaves the box unchecked.
+                            if (widget.onRedeemCheckboxChanged != null) {
+                              final confirmed =
+                                  await widget.onRedeemCheckboxChanged!(next);
+                              if (mounted) {
+                                setState(() {
+                                  isClaimSelected = confirmed;
+                                });
+                              }
+                              return;
+                            }
+
                             setState(() {
-                              isClaimSelected = value ?? false;
+                              isClaimSelected = next;
                             });
                           },
                           shape: RoundedRectangleBorder(
@@ -265,65 +288,11 @@ class _RewardCardState extends State<RewardCard> {
               ],
             ),
           ),
-          Builder(
-            builder: (context) {
-              // คำนวณราคาตาม projected หรือ reward (ใช้ _productPrice = 2500)
-              final originalPrice = useProjected
-                  ? (projected['total_quantity'] as int) * _productPrice
-                  : _productPrice * _parseToDouble(reward?['required_quantity'], 5);
-              final savingsAmount = useProjected
-                  ? (projected['free_items'] as int) * _productPrice
-                  : _parseToDouble(reward?['savings_amount'], 0);
-
-              return Container(
-                width: double.infinity,
-                height: 66,
-                decoration: BoxDecoration(
-                  color: AppColors.cardBackground.withValues(alpha:0.2),
-                  borderRadius: const BorderRadius.only(
-                    bottomLeft: Radius.circular(15),
-                    bottomRight: Radius.circular(15),
-                  ),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        useProjected ? 'ราคารวม' : 'ราคาสินค้า',
-                        style: AppTextStyles.heading16Medium.copyWith(
-                          color: AppColors.purpleText,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      Row(
-                        children: [
-                          Text(
-                            '${_formatPrice(originalPrice)}.-',
-                            style: AppTextStyles.body14Medium.copyWith(
-                              color: const Color(0xFF7D7D7D),
-                              decoration: TextDecoration.lineThrough,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            'ลด ${_formatPrice(savingsAmount)}.-',
-                            style: AppTextStyles.heading16Medium.copyWith(
-                              color: AppColors.mainPink,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            },
-          ),
           // ปุ่มแลกรางวัล (แสดงเมื่อเลือก checkbox)
-          if (isClaimSelected)
+          // When the parent owns the popup flow (home screen), the confirm
+          // step happens inside the popup itself — so we don't render the
+          // row of "ยกเลิก / แลกรางวัล" buttons here.
+          if (isClaimSelected && widget.onRedeemCheckboxChanged == null)
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(20),
@@ -398,6 +367,11 @@ class _RewardCardState extends State<RewardCard> {
 
     for (int i = levels.length - 1; i >= 0; i--) {
       final level = levels[i];
+      // is_completed = true หมายถึงยอดสะสม (effective_quantity) ฝั่ง backend
+      // ปลดล็อก level นี้ไว้แล้วก่อนจะนับ cart — ของแถมรอบนั้นรออยู่ใน
+      // available_rewards ให้ user ไปกดแลกที่หน้า MyFreeItems แทน
+      // ไม่ใช่ผูกกับ order ใหม่ผ่าน RewardCard
+      if (level['is_completed'] == true) continue;
       // Parse required_quantity as double to handle both string and num values
       final requiredRaw = level['required_quantity'];
       final required = requiredRaw is num

@@ -150,23 +150,25 @@ class Order extends Model
     {
         foreach ($this->orderItems as $item) {
             $product = $item->product;
-            if ($product && $product->stock >= $item->quantity) {
-                $product->decrement('stock', $item->quantity);
-                
-                // Log stock reduction
-                \Log::info("Stock reduced for product {$product->id}: -{$item->quantity}, remaining: {$product->fresh()->stock}");
-                
-                // Check for low stock after reduction
-                $updatedProduct = $product->fresh();
-                $threshold = config('telegram.low_stock_threshold', 5);
-                
-                if ($updatedProduct->stock <= $threshold && $updatedProduct->is_active) {
-                    // Send immediate low stock notification for this specific product
-                    \App\Jobs\SendLowStockNotification::dispatch(collect([$updatedProduct]), $threshold);
-                }
-            } else {
-                // Log if insufficient stock
-                \Log::warning("Insufficient stock for product {$product->id}. Required: {$item->quantity}, Available: {$product->stock}");
+            if (!$product) {
+                continue;
+            }
+
+            // Atomic conditional decrement — prevents two concurrent paid orders
+            // from both reading "stock >= qty" and then double-spending the row.
+            $ok = \App\Services\StockService::tryDecrement($product->id, (int) $item->quantity);
+            if (!$ok) {
+                \Log::warning("Insufficient stock for product {$product->id}. Required: {$item->quantity}, Available: {$product->fresh()->stock}");
+
+                continue;
+            }
+
+            $updatedProduct = $product->fresh();
+            \Log::info("Stock reduced for product {$product->id}: -{$item->quantity}, remaining: {$updatedProduct->stock}");
+
+            $threshold = config('telegram.low_stock_threshold', 5);
+            if ($updatedProduct->stock <= $threshold && $updatedProduct->is_active) {
+                \App\Jobs\SendLowStockNotification::dispatch(collect([$updatedProduct]), $threshold);
             }
         }
     }

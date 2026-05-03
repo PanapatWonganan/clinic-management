@@ -65,6 +65,12 @@ class OrderController extends Controller
             'selected_free_items' => 'nullable|array',
             'selected_free_items.*.product_id' => 'required_with:selected_free_items|exists:products,id',
             'selected_free_items.*.quantity' => 'required_with:selected_free_items|integer|min:1',
+            // ของแถมที่เลือกจาก reward ใหม่ในออเดอร์นี้ (ยังไม่มีสิทธิ์ใน DB — จะ claim พร้อม order)
+            // Why: สิทธิ์เก่า (selected_free_items) ถูก validate กับ user_claimed_rewards เดิม
+            // ของแถมจาก reward ใหม่ต้องแยก key เพื่อไม่ชน validation ของเก่า
+            'new_order_free_items' => 'nullable|array',
+            'new_order_free_items.*.product_id' => 'required_with:new_order_free_items|exists:products,id',
+            'new_order_free_items.*.quantity' => 'required_with:new_order_free_items|integer|min:1',
         ]);
 
         if ($validator->fails()) {
@@ -224,13 +230,11 @@ class OrderController extends Controller
                     $product = Product::find($freeItem['product_id']);
                     if (!$product) continue;
 
-                    // ตรวจสอบ stock
-                    if ($product->stock < $freeItem['quantity']) {
+                    // Atomic decrement — rejects if another concurrent request
+                    // already consumed the row.
+                    if (!\App\Services\StockService::tryDecrement($product->id, (int) $freeItem['quantity'])) {
                         throw new \Exception("สินค้าของแถม {$product->name} มี stock ไม่เพียงพอ");
                     }
-
-                    // หัก stock ของแถม
-                    $product->decrement('stock', $freeItem['quantity']);
 
                     // หักจาก rewards ตาม FIFO
                     $itemQtyRemaining = $freeItem['quantity'];
@@ -263,6 +267,60 @@ class OrderController extends Controller
                     'order_id' => $order->id,
                     'free_items' => $request->selected_free_items,
                     'total_quantity' => $totalFreeItemsQuantity,
+                ]);
+            }
+
+            // ประมวลผลของแถมจาก reward ใหม่ที่เพิ่งเกิดในออเดอร์นี้
+            // (แยกจาก selected_free_items เพราะสิทธิ์เพิ่งสร้างในทรานแซคชันนี้ — validate ต่างกัน)
+            if ($request->new_order_free_items && count($request->new_order_free_items) > 0) {
+                $newRewardQuota = (int) ($request->reward_free_items ?? 0);
+                $newOrderTotalQty = collect($request->new_order_free_items)->sum('quantity');
+
+                if ($newRewardQuota <= 0) {
+                    throw new \Exception('ออเดอร์นี้ยังไม่ได้แลก reward — ไม่สามารถเลือกของแถมได้');
+                }
+                if ($newOrderTotalQty > $newRewardQuota) {
+                    throw new \Exception("เลือกของแถมเกินสิทธิ์ที่ออเดอร์นี้ได้รับ (ต้องการ $newOrderTotalQty, ได้ $newRewardQuota)");
+                }
+
+                // reward record เพิ่งถูกสร้างในบล็อก if ($request->reward_level) ก่อนหน้านี้
+                $newReward = UserClaimedReward::where('user_id', $user->id)
+                    ->where('order_id', $order->id)
+                    ->latest('id')
+                    ->first();
+
+                if (!$newReward) {
+                    throw new \Exception('ไม่พบ reward ของออเดอร์นี้');
+                }
+
+                foreach ($request->new_order_free_items as $freeItem) {
+                    $product = Product::find($freeItem['product_id']);
+                    if (!$product) continue;
+
+                    if (!\App\Services\StockService::tryDecrement($product->id, (int) $freeItem['quantity'])) {
+                        throw new \Exception("สินค้าของแถม {$product->name} มี stock ไม่เพียงพอ");
+                    }
+
+                    FreeItemRedemption::create([
+                        'user_id' => $user->id,
+                        'claimed_reward_id' => $newReward->id,
+                        'product_id' => $freeItem['product_id'],
+                        'quantity' => $freeItem['quantity'],
+                        'status' => FreeItemRedemption::STATUS_APPROVED,
+                        'shipping_address_id' => $shippingAddressId,
+                        'notes' => "ของแถมจากออเดอร์ #{$order->order_number}",
+                        'order_id' => $order->id,
+                        'approved_at' => now(),
+                    ]);
+
+                    $newReward->increment('redeemed_free_items', $freeItem['quantity']);
+                }
+
+                \Log::info('New-order free items claimed', [
+                    'order_id' => $order->id,
+                    'reward_id' => $newReward->id,
+                    'items' => $request->new_order_free_items,
+                    'total_quantity' => $newOrderTotalQty,
                 ]);
             }
 
@@ -339,7 +397,7 @@ class OrderController extends Controller
             // For pending_payment orders, stock was never reduced, so no need to restore
             if ($order->isPaid()) {
                 foreach ($order->orderItems as $item) {
-                    $item->product->increment('stock', $item->quantity);
+                    \App\Services\StockService::increment((int) $item->product_id, (int) $item->quantity);
                 }
             }
 

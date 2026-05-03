@@ -12,7 +12,9 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // Update the status enum to include all required statuses
+        if (DB::getDriverName() !== 'mysql') {
+            return;
+        }
         DB::statement("ALTER TABLE orders MODIFY COLUMN status ENUM('pending_payment', 'payment_uploaded', 'paid', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled') DEFAULT 'pending_payment'");
     }
 
@@ -21,7 +23,9 @@ return new class extends Migration
      */
     public function down(): void
     {
-        // Revert back to original enum
+        if (DB::getDriverName() !== 'mysql') {
+            return;
+        }
         DB::statement("ALTER TABLE orders MODIFY COLUMN status ENUM('pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled') DEFAULT 'pending'");
     }
 };

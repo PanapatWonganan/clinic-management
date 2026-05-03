@@ -30,6 +30,8 @@ class CheckoutScreen extends StatefulWidget {
   final bool isFreeItemOnly; // เป็น order ของแถมฟรีอย่างเดียว (ไม่ต้องชำระเงิน)
   final VoidCallback? onOrderCreated; // callback เมื่อสร้าง order สำเร็จ
   final Map<String, dynamic>? freeItemRedemption; // ข้อมูล reward สำหรับแลกของแถม
+  // ของแถมที่ user เลือกไว้จาก popup บนหน้า home (pass-through)
+  final List<Map<String, dynamic>>? preselectedNewOrderFreeItems;
 
   const CheckoutScreen({
     super.key,
@@ -39,6 +41,7 @@ class CheckoutScreen extends StatefulWidget {
     this.isFreeItemOnly = false,
     this.onOrderCreated,
     this.freeItemRedemption,
+    this.preselectedNewOrderFreeItems,
   });
 
   @override
@@ -72,8 +75,12 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   Map<String, dynamic>? existingRewardsSummary;
   bool isLoadingExistingRewards = true;
 
-  // ของแถมที่เลือกเพิ่มในออเดอร์นี้
+  // ของแถมที่เลือกเพิ่มในออเดอร์นี้ (จากสิทธิ์เก่าใน user_claimed_rewards)
   List<Map<String, dynamic>> selectedFreeItems = [];
+
+  // ของแถมที่เลือกจาก reward ใหม่ของออเดอร์นี้ (in-memory only; ส่งเป็น new_order_free_items ตอน POST)
+  // Why: ถ้าบันทึก DB ตอนเลือก แต่ user ไม่กดสั่ง จะเหลือ redemption ค้างไม่ผูก order
+  List<Map<String, dynamic>> newOrderFreeItems = [];
 
   // Global keys to access payment method card state
   final GlobalKey<State<PaymentMethodCard>> _creditCardKey =
@@ -128,6 +135,12 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     // For free item orders, default to promptpay (slip upload)
     // For regular orders, default to credit_card
     selectedPaymentMethod = widget.isFreeItemOnly ? 'promptpay' : 'credit_card';
+    // Hydrate free-item selections that the user already picked on the home screen
+    if (widget.preselectedNewOrderFreeItems != null) {
+      newOrderFreeItems = widget.preselectedNewOrderFreeItems!
+          .map((e) => Map<String, dynamic>.from(e))
+          .toList();
+    }
     _loadUserProfile();
     _loadAddresses();
     _loadMembershipData();
@@ -696,6 +709,14 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     'quantity': item['quantity'],
                   })
               .toList(),
+        // ส่งของแถมจาก reward ใหม่ของออเดอร์นี้ (popup "แลกของแถม")
+        if (newOrderFreeItems.isNotEmpty)
+          'new_order_free_items': newOrderFreeItems
+              .map((item) => {
+                    'product_id': item['product_id'],
+                    'quantity': item['quantity'],
+                  })
+              .toList(),
       };
 
       debugPrint('Order data prepared: $orderData');
@@ -1160,6 +1181,12 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     const SizedBox(height: 16),
                   ],
 
+                  // ของแถมจาก reward ใหม่ — ถูกเลือกไว้แล้วจากหน้า home (read-only summary)
+                  if (freeItemsCount > 0 && newOrderFreeItems.isNotEmpty) ...[
+                    _buildNewOrderFreeItemSummary(),
+                    const SizedBox(height: 20),
+                  ],
+
                   // สิทธิ์ของแถมที่มีอยู่แล้ว (ซ่อนเมื่อเป็น free item redemption)
                   if (totalExistingRewards > 0 && !widget.isFreeItemOnly) ...[
                     _buildExistingRewardsSection(),
@@ -1443,6 +1470,403 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           // Reward info - removed hardcoded text
         ],
       ),
+    );
+  }
+
+  // UI section — read-only summary ของแถมที่ user เลือกไว้แล้วจากหน้า home
+  Widget _buildNewOrderFreeItemSummary() {
+    final pickedQty = newOrderFreeItems.fold<int>(
+      0,
+      (sum, item) => sum + ((item['quantity'] ?? 0) as int),
+    );
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.mainPink.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.mainPink.withValues(alpha: 0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.redeem, color: AppColors.mainPink),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'ของแถมที่เลือก ($pickedQty/$freeItemsCount ชิ้น)',
+                  style: AppTextStyles.heading16Medium.copyWith(
+                    color: AppColors.mainPink,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          ...newOrderFreeItems.map(
+            (item) => Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Row(
+                children: [
+                  const Icon(Icons.check_circle,
+                      size: 16, color: Colors.green),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      '${item['name'] ?? 'ของแถม'}  x${item['quantity']}',
+                      style: AppTextStyles.body14Medium,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // (unused) Legacy popup kept for reference — กลายเป็น home-side popup แล้ว
+  // ignore: unused_element
+  Future<void> _removed_showNewOrderFreeItemDialog() async {
+    final quota = freeItemsCount;
+    if (quota <= 0) return;
+
+    // snapshot ตัวเลือกปัจจุบันเข้า dialog
+    final Map<int, Map<String, dynamic>> picked = {
+      for (final item in newOrderFreeItems)
+        item['product_id'] as int: Map<String, dynamic>.from(item),
+    };
+
+    List<Map<String, dynamic>> products = [];
+    bool loading = true;
+    String? loadError;
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetCtx) {
+        return StatefulBuilder(
+          builder: (sheetCtx, setSheetState) {
+            if (loading && loadError == null) {
+              ApiService.get('/redeemable-products').then((response) {
+                if (!sheetCtx.mounted) return;
+                if (response.statusCode == 200) {
+                  final data = json.decode(response.body);
+                  if (data['success'] == true) {
+                    setSheetState(() {
+                      products = List<Map<String, dynamic>>.from(data['data'] ?? []);
+                      loading = false;
+                    });
+                    return;
+                  }
+                }
+                setSheetState(() {
+                  loadError = 'ไม่สามารถโหลดรายการของแถมได้';
+                  loading = false;
+                });
+              }).catchError((e) {
+                if (!sheetCtx.mounted) return;
+                setSheetState(() {
+                  loadError = 'เกิดข้อผิดพลาด: $e';
+                  loading = false;
+                });
+              });
+            }
+
+            final pickedTotal = picked.values
+                .fold<int>(0, (sum, it) => sum + ((it['quantity'] ?? 0) as int));
+            final remaining = quota - pickedTotal;
+
+            return Container(
+              height: MediaQuery.of(sheetCtx).size.height * 0.8,
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(24),
+                  topRight: Radius.circular(24),
+                ),
+              ),
+              child: Column(
+                children: [
+                  // Handle
+                  Container(
+                    width: 40,
+                    height: 4,
+                    margin: const EdgeInsets.symmetric(vertical: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  // Header
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Row(
+                      children: [
+                        Icon(Icons.redeem, color: AppColors.mainPink),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'เลือกของแถม $quota ชิ้น',
+                                style: AppTextStyles.heading16Medium.copyWith(
+                                  color: AppColors.mainPink,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                'เลือกแล้ว $pickedTotal/$quota ชิ้น',
+                                style: AppTextStyles.caption10.copyWith(
+                                  color: AppColors.purpleText,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        IconButton(
+                          onPressed: () => Navigator.pop(sheetCtx),
+                          icon: const Icon(Icons.close),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Divider(height: 1),
+                  // Body
+                  Expanded(
+                    child: loading
+                        ? const Center(child: CircularProgressIndicator())
+                        : loadError != null
+                            ? Center(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(24),
+                                  child: Text(
+                                    loadError!,
+                                    style: AppTextStyles.body14Medium,
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ),
+                              )
+                            : products.isEmpty
+                                ? const Center(child: Text('ไม่มีสินค้าให้เลือก'))
+                                : ListView.separated(
+                                    padding: const EdgeInsets.all(16),
+                                    itemCount: products.length,
+                                    separatorBuilder: (_, __) =>
+                                        const SizedBox(height: 8),
+                                    itemBuilder: (ctx, i) {
+                                      final p = products[i];
+                                      final pid = p['id'] as int;
+                                      final qty =
+                                          (picked[pid]?['quantity'] ?? 0) as int;
+                                      final stock = (p['stock'] ?? 0) as int;
+
+                                      return Container(
+                                        padding: const EdgeInsets.all(12),
+                                        decoration: BoxDecoration(
+                                          color: qty > 0
+                                              ? AppColors.mainPink.withValues(alpha: 0.05)
+                                              : Colors.grey.shade50,
+                                          borderRadius: BorderRadius.circular(12),
+                                          border: Border.all(
+                                            color: qty > 0
+                                                ? AppColors.mainPink
+                                                : Colors.grey.shade200,
+                                          ),
+                                        ),
+                                        child: Row(
+                                          children: [
+                                            Container(
+                                              width: 56,
+                                              height: 56,
+                                              decoration: BoxDecoration(
+                                                color: Colors.grey.shade100,
+                                                borderRadius:
+                                                    BorderRadius.circular(8),
+                                              ),
+                                              child: p['image_url'] != null
+                                                  ? ClipRRect(
+                                                      borderRadius:
+                                                          BorderRadius.circular(8),
+                                                      child: Image.network(
+                                                        p['image_url'],
+                                                        fit: BoxFit.cover,
+                                                        errorBuilder:
+                                                            (_, __, ___) =>
+                                                                Icon(
+                                                          Icons.card_giftcard,
+                                                          color: Colors
+                                                              .grey.shade400,
+                                                        ),
+                                                      ),
+                                                    )
+                                                  : Icon(
+                                                      Icons.card_giftcard,
+                                                      color:
+                                                          Colors.grey.shade400,
+                                                    ),
+                                            ),
+                                            const SizedBox(width: 12),
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    p['name'] ?? '-',
+                                                    style: AppTextStyles
+                                                        .body14Medium
+                                                        .copyWith(
+                                                      fontWeight: FontWeight.w600,
+                                                    ),
+                                                  ),
+                                                  Text(
+                                                    'คงเหลือ $stock ชิ้น',
+                                                    style: AppTextStyles.caption10
+                                                        .copyWith(
+                                                      color: Colors.grey.shade600,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                            // Quantity controls
+                                            Row(
+                                              children: [
+                                                IconButton(
+                                                  onPressed: qty <= 0
+                                                      ? null
+                                                      : () {
+                                                          setSheetState(() {
+                                                            final next = qty - 1;
+                                                            if (next <= 0) {
+                                                              picked.remove(pid);
+                                                            } else {
+                                                              picked[pid] = {
+                                                                'product_id': pid,
+                                                                'name': p['name'],
+                                                                'image': p['image_url'],
+                                                                'quantity': next,
+                                                              };
+                                                            }
+                                                          });
+                                                        },
+                                                  icon: Icon(
+                                                    Icons.remove_circle_outline,
+                                                    color: qty <= 0
+                                                        ? Colors.grey.shade300
+                                                        : AppColors.mainPink,
+                                                  ),
+                                                ),
+                                                SizedBox(
+                                                  width: 24,
+                                                  child: Text(
+                                                    '$qty',
+                                                    style: AppTextStyles
+                                                        .body14Medium
+                                                        .copyWith(
+                                                      fontWeight: FontWeight.w600,
+                                                    ),
+                                                    textAlign: TextAlign.center,
+                                                  ),
+                                                ),
+                                                IconButton(
+                                                  onPressed: remaining <= 0 ||
+                                                          qty >= stock
+                                                      ? null
+                                                      : () {
+                                                          setSheetState(() {
+                                                            picked[pid] = {
+                                                              'product_id': pid,
+                                                              'name': p['name'],
+                                                              'image':
+                                                                  p['image_url'],
+                                                              'quantity': qty + 1,
+                                                            };
+                                                          });
+                                                        },
+                                                  icon: Icon(
+                                                    Icons.add_circle_outline,
+                                                    color: (remaining <= 0 ||
+                                                            qty >= stock)
+                                                        ? Colors.grey.shade300
+                                                        : AppColors.mainPink,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                    },
+                                  ),
+                  ),
+                  // Confirm footer
+                  SafeArea(
+                    top: false,
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton(
+                              onPressed: () => Navigator.pop(sheetCtx),
+                              style: OutlinedButton.styleFrom(
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 14),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                              child: const Text('ยกเลิก'),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            flex: 2,
+                            child: ElevatedButton(
+                              onPressed: () {
+                                setState(() {
+                                  newOrderFreeItems = picked.values
+                                      .map((it) =>
+                                          Map<String, dynamic>.from(it))
+                                      .toList();
+                                });
+                                Navigator.pop(sheetCtx);
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.mainPink,
+                                foregroundColor: Colors.white,
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 14),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                              child: Text(
+                                pickedTotal == 0
+                                    ? 'ยืนยัน (ไม่เลือก)'
+                                    : 'ยืนยัน ($pickedTotal ชิ้น)',
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
     );
   }
 

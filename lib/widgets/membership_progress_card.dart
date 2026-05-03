@@ -52,6 +52,8 @@ class MembershipProgressCard extends StatelessWidget {
   }
 
   Widget _buildMembershipHeader() {
+    final previewBoxes = previewQuantity?.toInt() ?? 0;
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -62,6 +64,15 @@ class MembershipProgressCard extends StatelessWidget {
             fontWeight: FontWeight.bold,
           ),
         ),
+        if (previewBoxes > 0)
+          Text(
+            '$previewBoxes กล่อง',
+            style: TextStyle(
+              color: _getMembershipColor(),
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           decoration: BoxDecoration(
