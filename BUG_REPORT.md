@@ -286,7 +286,7 @@ User ที่ยังไม่ได้กรอกข้อมูล จะ�
 
 ---
 
-### [ ] M3. ProductController image upload — predictable filename + ไม่ sanitize original name
+### [x] M3. ProductController image upload — predictable filename + ไม่ sanitize original name
 **ไฟล์:** `clinic-backend/app/Http/Controllers/ProductController.php:183, 232`
 
 **ทำไมเป็น bug:**

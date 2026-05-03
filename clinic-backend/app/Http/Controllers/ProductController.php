@@ -197,11 +197,12 @@ class ProductController extends Controller
 
         $data = $request->except('image');
 
-        // Handle image upload
+        // Handle image upload — use Laravel's hashName() for collision-resistant
+        // and path-traversal-safe filenames; the original client name is
+        // attacker-controlled and could embed slashes.
         if ($request->hasFile('image')) {
             $image = $request->file('image');
-            $imageName = time() . '_' . $image->getClientOriginalName();
-            $path = $image->storeAs('products', $imageName, 'public');
+            $path = $image->storeAs('products', $image->hashName(), 'public');
             $data['image_url'] = Storage::url($path);
         }
 
@@ -247,17 +248,15 @@ class ProductController extends Controller
 
         $data = $request->except('image');
 
-        // Handle image upload
+        // Handle image upload — see store() for why hashName() is used.
         if ($request->hasFile('image')) {
-            // Delete old image if exists
             if ($product->image_url && !str_starts_with($product->image_url, 'http')) {
                 $oldPath = str_replace('/storage/', '', $product->image_url);
                 Storage::disk('public')->delete($oldPath);
             }
 
             $image = $request->file('image');
-            $imageName = time() . '_' . $image->getClientOriginalName();
-            $path = $image->storeAs('products', $imageName, 'public');
+            $path = $image->storeAs('products', $image->hashName(), 'public');
             $data['image_url'] = Storage::url($path);
         }
 
