@@ -143,7 +143,7 @@ GET `/api/payment/status/{paymentId}` ส่ง transaction_id, status, amount, 
 
 ---
 
-### [ ] H3. `PaySolutionsService::generatePaymentUrl` ไม่ได้แนบ signature → callback verifies signature ที่ไม่เคย sign
+### [x] H3. `PaySolutionsService::generatePaymentUrl` ไม่ได้แนบ signature → callback verifies signature ที่ไม่เคย sign
 **ไฟล์:** `clinic-backend/app/Services/PaySolutionsService.php:104-127, 132-168`
 
 **ทำไมเป็น bug:**

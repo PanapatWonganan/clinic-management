@@ -116,6 +116,13 @@ class PaySolutionsService
             'cc' => config('paysolutions.currency', 'THB'),
         ];
 
+        // Sign the request so callbacks that echo our params can be verified
+        // round-trip. Without this the verifyCallback() check on the receiving
+        // side has nothing legitimate to compare against, so any tampered
+        // callback would either always pass (no signature present) or always
+        // fail (mismatched signature). The signing scheme matches verifyCallback().
+        $params['signature'] = $this->generateSignature($params);
+
         // Test mode: return test URL
         if ($this->testMode) {
             $queryString = http_build_query($params);
