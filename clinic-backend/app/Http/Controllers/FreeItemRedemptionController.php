@@ -320,8 +320,10 @@ class FreeItemRedemptionController extends Controller
             $deliveryMethod = 'delivery'; // ใช้ delivery เสมอสำหรับแลกของแถม
             $deliveryMethodDetail = $request->delivery_method ?? 'delivery';
 
-            // Generate order number
-            $orderNumber = 'FREE-' . date('Ymd') . '-' . str_pad(Order::whereDate('created_at', today())->count() + 1, 3, '0', STR_PAD_LEFT);
+            // Generate order number — collision-resistant; the previous
+            // count()+1 approach raced and could even collide across the
+            // ORD/FREE prefix families.
+            $orderNumber = \App\Services\OrderNumberService::generate('FREE');
 
             $order = Order::create([
                 'order_number' => $orderNumber,

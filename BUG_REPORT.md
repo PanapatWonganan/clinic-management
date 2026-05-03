@@ -44,7 +44,7 @@ if ($updated === 0) throw new \Exception('out of stock');
 
 ---
 
-### [ ] C2. Order number ไม่ unique เพราะใช้ `count() + 1` race
+### [x] C2. Order number ไม่ unique เพราะใช้ `count() + 1` race
 **ไฟล์:** `clinic-backend/app/Http/Controllers/OrderController.php:150` และ `FreeItemRedemptionController.php:326`
 
 **ทำไมเป็น bug:**

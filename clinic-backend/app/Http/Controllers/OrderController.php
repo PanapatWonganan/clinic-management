@@ -146,8 +146,9 @@ class OrderController extends Controller
             // Calculate total amount
             $totalAmount = $subtotal + $deliveryFee - $discount;
 
-            // Generate order number
-            $orderNumber = 'ORD-' . date('Ymd') . '-' . str_pad(Order::whereDate('created_at', today())->count() + 1, 3, '0', STR_PAD_LEFT);
+            // Generate order number — uses ULID-derived suffix to avoid the
+            // count()+1 race that lets concurrent requests build identical numbers.
+            $orderNumber = \App\Services\OrderNumberService::generate('ORD');
 
             // Create order with pending_payment status (Payment-First Flow)
             $order = Order::create([
