@@ -25,12 +25,15 @@ class ProductController extends Controller
         // Apply membership-based pricing for main products if user is authenticated
         if (request('category') === 'main') {
             $user = auth('sanctum')->user();
-            if ($user && $user->membership_type === 'exDoctor') {
-                // Apply special pricing for exDoctor membership
-                $products = $products->map(function ($product) {
-                    $product->price = 850.00; // Special price for exDoctor
-                    return $product;
-                });
+            if ($user) {
+                $override = config('membership.main_product_price_overrides.'.$user->membership_type);
+                if ($override !== null) {
+                    $products = $products->map(function ($product) use ($override) {
+                        $product->price = (float) $override;
+
+                        return $product;
+                    });
+                }
             }
         }
 
@@ -62,12 +65,15 @@ class ProductController extends Controller
 
         // Apply membership-based pricing if user is authenticated
         $user = auth('sanctum')->user();
-        if ($user && $user->membership_type === 'exDoctor') {
-            // Apply special pricing for exDoctor membership
-            $products = $products->map(function ($product) {
-                $product->price = 850.00; // Special price for exDoctor
-                return $product;
-            });
+        if ($user) {
+            $override = config('membership.main_product_price_overrides.'.$user->membership_type);
+            if ($override !== null) {
+                $products = $products->map(function ($product) use ($override) {
+                    $product->price = (float) $override;
+
+                    return $product;
+                });
+            }
         }
 
         // Transform image URLs to use current host with /api/storage path for CORS support

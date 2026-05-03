@@ -274,7 +274,7 @@ User ที่ยังไม่ได้กรอกข้อมูล จะ�
 
 ---
 
-### [ ] M2. `ProductController::index` apply `exDoctor` price 850 hard-coded ใน controller
+### [x] M2. `ProductController::index` apply `exDoctor` price 850 hard-coded ใน controller
 **ไฟล์:** `clinic-backend/app/Http/Controllers/ProductController.php:31, 68`
 
 **ทำไมเป็น bug:**
