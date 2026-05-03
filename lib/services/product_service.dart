@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'api_service.dart';
 import '../models/product_category.dart';
 
@@ -25,7 +26,7 @@ class ProductService {
         throw Exception('Failed to load main products: ${response.statusCode}');
       }
     } catch (e) {
-      print('Error fetching main products: $e');
+      debugPrint('Error fetching main products: $e');
       // ถ้า API ล้มเหลว ให้ใช้ข้อมูล fallback
       return _getFallbackMainProducts(membershipType);
     }
@@ -59,7 +60,7 @@ class ProductService {
             'Failed to load reward products: ${response.statusCode}');
       }
     } catch (e) {
-      print('Error fetching reward products: $e');
+      debugPrint('Error fetching reward products: $e');
       // ถ้า API ล้มเหลว ให้ใช้ข้อมูล fallback
       return _getFallbackRewardProducts();
     }
@@ -82,7 +83,7 @@ class ProductService {
         throw Exception('Failed to load all products: ${response.statusCode}');
       }
     } catch (e) {
-      print('Error fetching all products: $e');
+      debugPrint('Error fetching all products: $e');
       return [];
     }
   }

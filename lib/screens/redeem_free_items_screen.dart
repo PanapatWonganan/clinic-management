@@ -38,8 +38,8 @@ class _RedeemFreeItemsScreenState extends State<RedeemFreeItemsScreen> {
       });
 
       final response = await ApiService.get('/redeemable-products');
-      print('Redeemable products response: ${response.statusCode}');
-      print('Redeemable products body: ${response.body}');
+      debugPrint('Redeemable products response: ${response.statusCode}');
+      debugPrint('Redeemable products body: ${response.body}');
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -48,7 +48,7 @@ class _RedeemFreeItemsScreenState extends State<RedeemFreeItemsScreen> {
             products = List<Map<String, dynamic>>.from(data['data'] ?? []);
             isLoadingProducts = false;
           });
-          print('Loaded ${products.length} products');
+          debugPrint('Loaded ${products.length} products');
         } else {
           setState(() {
             errorMessage = data['message'] ?? 'Failed to load products';
@@ -61,14 +61,14 @@ class _RedeemFreeItemsScreenState extends State<RedeemFreeItemsScreen> {
           errorMessage = 'Server error: ${response.statusCode}';
           isLoadingProducts = false;
         });
-        print('Error response: ${response.body}');
+        debugPrint('Error response: ${response.body}');
       }
     } catch (e) {
       setState(() {
         errorMessage = 'Error loading products: $e';
         isLoadingProducts = false;
       });
-      print('Exception loading products: $e');
+      debugPrint('Exception loading products: $e');
     }
   }
 

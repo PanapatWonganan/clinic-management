@@ -257,9 +257,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   }
 
   Future<void> _loadUserProfile() async {
-    print('Loading user profile...');
+    debugPrint('Loading user profile...');
     final profile = await ProfileService.instance.loadProfile();
-    print('Profile loaded: ${profile.district} ${profile.province}');
+    debugPrint('Profile loaded: ${profile.district} ${profile.province}');
     setState(() {
       userProfile = profile;
       isLoadingProfile = false;
@@ -289,7 +289,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         }
       });
     } catch (e) {
-      print('Error loading addresses: $e');
+      debugPrint('Error loading addresses: $e');
       setState(() {
         isLoadingAddresses = false;
       });
@@ -314,7 +314,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         isLoadingDeliveryOptions = false;
       });
     } catch (e) {
-      print('Error loading delivery options: $e');
+      debugPrint('Error loading delivery options: $e');
       // Fallback to sample options
       setState(() {
         availableDeliveryOptions = DeliveryOption.getSampleOptions();
@@ -372,7 +372,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         }
       });
     } catch (e) {
-      print('Error loading delivery options: $e');
+      debugPrint('Error loading delivery options: $e');
       // Fallback to sample options
       setState(() {
         availableDeliveryOptions = DeliveryOption.getSampleOptions();
@@ -478,7 +478,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
     // ถ้าผู้ใช้บันทึกข้อมูลแล้ว ให้โหลดข้อมูลใหม่และ delivery options ใหม่
     if (result == true) {
-      print('Profile updated, reloading data...');
+      debugPrint('Profile updated, reloading data...');
       await ProfileService.instance.forceReloadProfile();
       await _loadUserProfile();
       // Delivery options will be reloaded automatically in _loadUserProfile
@@ -859,9 +859,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             // Get uploaded slips from PromptPay card
             slipUploadSuccess = await PaymentMethodCard.uploadSlipsFromCard(
                 _promptPayKey, orderId);
-            print('Slip upload result: $slipUploadSuccess');
+            debugPrint('Slip upload result: $slipUploadSuccess');
           } catch (e) {
-            print('Error uploading slips: $e');
+            debugPrint('Error uploading slips: $e');
             slipUploadSuccess = false;
           }
 

@@ -1,6 +1,7 @@
 import '../models/thai_address.dart';
 import '../constants/app_config.dart';
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 class ThaiAddressService {
@@ -56,23 +57,23 @@ class ThaiAddressService {
 
   // Get districts by province ID
   Future<List<District>> getDistrictsByProvinceId(int provinceId) async {
-    print('ThaiAddressService: Loading districts for province ID: $provinceId');
+    debugPrint('ThaiAddressService: Loading districts for province ID: $provinceId');
     try {
       final url = '${AppConfig.thaiAddressApiUrl}/districts/$provinceId';
-      print('ThaiAddressService: Making request to: $url');
+      debugPrint('ThaiAddressService: Making request to: $url');
 
       final response = await http.get(
         Uri.parse(url),
         headers: {'Accept': 'application/json'},
       );
 
-      print('ThaiAddressService: Response status: ${response.statusCode}');
-      print('ThaiAddressService: Response body: ${response.body}');
+      debugPrint('ThaiAddressService: Response status: ${response.statusCode}');
+      debugPrint('ThaiAddressService: Response body: ${response.body}');
 
       if (response.statusCode == 200) {
         final responseData = json.decode(response.body);
         final data = responseData['data'] as List;
-        print('ThaiAddressService: Found ${data.length} districts');
+        debugPrint('ThaiAddressService: Found ${data.length} districts');
 
         final districts = data
             .map((item) => District(
@@ -83,19 +84,19 @@ class ThaiAddressService {
                 ))
             .toList();
 
-        print(
+        debugPrint(
             'ThaiAddressService: Mapped districts: ${districts.map((d) => d.nameTh).join(', ')}');
         return districts;
       } else {
-        print(
+        debugPrint(
             'ThaiAddressService: API returned error status: ${response.statusCode}');
       }
     } catch (e) {
-      print('ThaiAddressService: Error loading districts: $e');
+      debugPrint('ThaiAddressService: Error loading districts: $e');
     }
 
     // Fallback to sample districts if API fails
-    print(
+    debugPrint(
         'ThaiAddressService: Using fallback districts for province ID: $provinceId');
     return _getFallbackDistricts(provinceId);
   }
@@ -123,7 +124,7 @@ class ThaiAddressService {
             .toList();
       }
     } catch (e) {
-      print('Error loading sub-districts: $e');
+      debugPrint('Error loading sub-districts: $e');
     }
 
     // Fallback to sample sub-districts if API fails
@@ -160,7 +161,7 @@ class ThaiAddressService {
         );
       }
     } catch (e) {
-      print('Error loading district by ID: $e');
+      debugPrint('Error loading district by ID: $e');
     }
     return null;
   }
@@ -184,7 +185,7 @@ class ThaiAddressService {
         );
       }
     } catch (e) {
-      print('Error loading sub-district by ID: $e');
+      debugPrint('Error loading sub-district by ID: $e');
     }
     return null;
   }

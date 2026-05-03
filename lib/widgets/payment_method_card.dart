@@ -799,7 +799,7 @@ class _PaymentMethodCardState extends State<PaymentMethodCard> {
         await _uploadSlipFile(file);
       }
     } catch (e) {
-      print('Error picking file: $e');
+      debugPrint('Error picking file: $e');
       _showErrorMessage('เกิดข้อผิดพลาดในการเลือกไฟล์');
     }
   }
@@ -841,7 +841,7 @@ class _PaymentMethodCardState extends State<PaymentMethodCard> {
     if (uploadedSlips.isEmpty) return true;
 
     try {
-      print(
+      debugPrint(
           'Starting slip upload for order: $orderId with ${uploadedSlips.length} slips');
 
       final response = await ApiService.uploadPlatformFiles(
@@ -851,20 +851,20 @@ class _PaymentMethodCardState extends State<PaymentMethodCard> {
         fileFieldName: 'files',
       );
 
-      print('Upload response status: ${response.statusCode}');
-      print('Upload response body: ${response.body}');
+      debugPrint('Upload response status: ${response.statusCode}');
+      debugPrint('Upload response body: ${response.body}');
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
         final responseData = ApiService.parseResponse(response);
         bool success = responseData['success'] == true;
-        print('Upload success: $success');
+        debugPrint('Upload success: $success');
         return success;
       } else {
-        print('Upload failed with status: ${response.statusCode}');
+        debugPrint('Upload failed with status: ${response.statusCode}');
         return false;
       }
     } catch (e) {
-      print('Error uploading slips: $e');
+      debugPrint('Error uploading slips: $e');
       return false;
     }
   }

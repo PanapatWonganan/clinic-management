@@ -53,11 +53,11 @@ class _PaymentPendingScreenState extends State<PaymentPendingScreen> {
         if (data['success'] == true) {
           // For now, we'll just show the count since we can't easily convert URLs to Files
           // In a real app, you might want to show thumbnails of existing slips
-          print('Existing slips: ${data['data'].length}');
+          debugPrint('Existing slips: ${data['data'].length}');
         }
       }
     } catch (e) {
-      print('Error loading existing slips: $e');
+      debugPrint('Error loading existing slips: $e');
     }
   }
 

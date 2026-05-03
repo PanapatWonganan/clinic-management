@@ -360,7 +360,7 @@ $imageName = time() . '_' . $image->getClientOriginalName();
 
 ---
 
-### [ ] M8. Frontend `print()` ใน production code (analyzer flagged 30+ ครั้ง)
+### [x] M8. Frontend `print()` ใน production code (analyzer flagged 30+ ครั้ง)
 **ไฟล์:**
 - `lib/models/order.dart:102, 103, 111, 112, 116, 120, 125`
 - `lib/screens/checkout_screen.dart:260, 262, 292, 317, 375, 481, 862, 864`
