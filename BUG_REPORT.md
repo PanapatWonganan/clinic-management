@@ -243,7 +243,7 @@ $upgradeRule = DB::table('membership_upgrade_rules')
 
 ---
 
-### [ ] H10. `ProductController::store/update/destroy` ใช้ `$request->validate` ไม่ใช่ `Validator::make` → throw exception แทน return JSON 422
+### [x] H10. `ProductController::store/update/destroy` ใช้ `$request->validate` ไม่ใช่ `Validator::make` → throw exception แทน return JSON 422
 **ไฟล์:** `clinic-backend/app/Http/Controllers/ProductController.php:166-272`
 
 **ทำไมเป็น bug:**
