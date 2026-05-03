@@ -231,7 +231,7 @@ $upgradeRule = DB::table('membership_upgrade_rules')
 
 ---
 
-### [ ] H9. `PaymentSlipController::adminUpdateStatus` ไม่มี admin guard
+### [x] H9. `PaymentSlipController::adminUpdateStatus` ไม่มี admin guard
 **ไฟล์:** `clinic-backend/app/Http/Controllers/PaymentSlipController.php:237-284`
 
 **ทำไมเป็น bug:**

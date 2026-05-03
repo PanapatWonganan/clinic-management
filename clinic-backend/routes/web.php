@@ -146,8 +146,8 @@ Route::prefix('admin')->group(function () {
             Route::get('/', function() {
                 return view('admin.payment_slips');
             })->name('index');
-            Route::get('/api', [\App\Http\Controllers\PaymentSlipController::class, 'adminIndex'])->name('api.index');
-            Route::put('/{slipId}/status', [\App\Http\Controllers\PaymentSlipController::class, 'adminUpdateStatus'])->name('update.status');
+            Route::get('/api', [\App\Http\Controllers\Admin\PaymentSlipController::class, 'adminIndex'])->name('api.index');
+            Route::put('/{slipId}/status', [\App\Http\Controllers\Admin\PaymentSlipController::class, 'adminUpdateStatus'])->name('update.status');
         });
 
         // Reward management routes
