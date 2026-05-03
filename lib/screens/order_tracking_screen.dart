@@ -101,8 +101,6 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
               case OrderStatus.shipped:
                 // Keep as shipped - final status
                 break;
-              default:
-                break;
             }
           });
 
@@ -471,8 +469,6 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
         return 2;
       case OrderStatus.shipped:
         return 3;
-      default:
-        return 0;
     }
   }
 

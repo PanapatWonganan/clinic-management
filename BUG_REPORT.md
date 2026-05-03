@@ -390,7 +390,7 @@ $imageName = time() . '_' . $image->getClientOriginalName();
 
 ---
 
-### [ ] M10. `lib/screens/order_tracking_screen.dart:104, 474` — `unreachable_switch_default`
+### [x] M10. `lib/screens/order_tracking_screen.dart:104, 474` — `unreachable_switch_default`
 **ทำไมเป็น bug:**
 Switch ครอบทุก enum case แล้ว แต่ยังมี `default:` — code dead, แต่จริง ๆ คือสัญญาณว่ามี case ที่หายไป (Dart ไม่บังคับ exhaustiveness ถ้ามี default)
 - ถ้าเพิ่ม status ใหม่ (เช่น `STATUS_RETURNED`) — สวิตช์จะเงียบ ๆ ตก default แทนที่จะ fail loud
