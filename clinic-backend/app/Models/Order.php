@@ -26,6 +26,7 @@ class Order extends Model
         'tracking_number',
         'notes',
         'is_free_item_order',
+        'stock_reduced_at',
     ];
 
     protected $casts = [
@@ -33,6 +34,7 @@ class Order extends Model
         'subtotal' => 'decimal:2',
         'delivery_fee' => 'decimal:2',
         'discount' => 'decimal:2',
+        'stock_reduced_at' => 'datetime',
     ];
 
     // Relationship with User
@@ -125,29 +127,45 @@ class Order extends Model
         ]);
     }
 
-    // Stock reduction should happen when status changes to 'paid'
+    // Stock reduction should happen when status changes to 'paid'.
+    // Side effects (telegram dispatch, low-stock notification) are deferred to
+    // afterCommit so they don't fire from inside an outer transaction that
+    // might still roll back. Stock reduction itself is guarded by
+    // stock_reduced_at so a status that flips paid→other→paid can only
+    // decrement once.
     protected static function booted()
     {
         static::updated(function ($order) {
-            // If status changed, send notification
-            if ($order->isDirty('status')) {
-                $oldStatus = $order->getOriginal('status');
-                $newStatus = $order->status;
-                
-                // Send Telegram notification for status change
+            if (!$order->isDirty('status')) {
+                return;
+            }
+            $oldStatus = $order->getOriginal('status');
+            $newStatus = $order->status;
+
+            \DB::afterCommit(function () use ($order, $oldStatus, $newStatus) {
                 SendTelegramNotification::dispatch($order, 'status_update', $oldStatus, $newStatus);
-                
-                // If status changed to 'paid', reduce stock
-                if ($newStatus === self::STATUS_PAID) {
-                    $order->reduceProductStock();
-                }
+            });
+
+            if ($newStatus === self::STATUS_PAID) {
+                $order->reduceProductStock();
             }
         });
     }
 
-    // Reduce product stock for all order items
+    // Reduce product stock for all order items. Idempotent — sets
+    // stock_reduced_at on first successful run and short-circuits later calls.
     public function reduceProductStock()
     {
+        if ($this->stock_reduced_at !== null) {
+            \Log::info("Stock reduction skipped — already applied at {$this->stock_reduced_at}", [
+                'order_id' => $this->id,
+            ]);
+
+            return;
+        }
+
+        $reducedProducts = [];
+
         foreach ($this->orderItems as $item) {
             $product = $item->product;
             if (!$product) {
@@ -165,11 +183,22 @@ class Order extends Model
 
             $updatedProduct = $product->fresh();
             \Log::info("Stock reduced for product {$product->id}: -{$item->quantity}, remaining: {$updatedProduct->stock}");
+            $reducedProducts[] = $updatedProduct;
+        }
 
-            $threshold = config('telegram.low_stock_threshold', 5);
-            if ($updatedProduct->stock <= $threshold && $updatedProduct->is_active) {
-                \App\Jobs\SendLowStockNotification::dispatch(collect([$updatedProduct]), $threshold);
-            }
+        // Mark as reduced atomically; using updateQuietly avoids re-entering
+        // the updated() observer above and re-triggering the same logic.
+        $this->forceFill(['stock_reduced_at' => now()])->saveQuietly();
+
+        $threshold = config('telegram.low_stock_threshold', 5);
+        $lowStockProducts = collect($reducedProducts)->filter(function ($p) use ($threshold) {
+            return $p->stock <= $threshold && $p->is_active;
+        })->values();
+
+        if ($lowStockProducts->isNotEmpty()) {
+            \DB::afterCommit(function () use ($lowStockProducts, $threshold) {
+                \App\Jobs\SendLowStockNotification::dispatch($lowStockProducts, $threshold);
+            });
         }
     }
 }

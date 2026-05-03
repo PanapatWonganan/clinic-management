@@ -111,7 +111,7 @@ GET `/api/payment/status/{paymentId}` ส่ง transaction_id, status, amount, 
 
 ## 🟠 HIGH
 
-### [ ] H1. `Order::booted()` static event อาจ trigger ซ้ำ + race กับ stock decrement ใน controller
+### [x] H1. `Order::booted()` static event อาจ trigger ซ้ำ + race กับ stock decrement ใน controller
 **ไฟล์:** `clinic-backend/app/Models/Order.php:129-146`
 
 **ทำไมเป็น bug:**
@@ -127,7 +127,7 @@ GET `/api/payment/status/{paymentId}` ส่ง transaction_id, status, amount, 
 
 ---
 
-### [ ] H2. Reduce stock ใน `Order::booted()` ไม่อยู่ใน transaction → ไม่ atomic
+### [x] H2. Reduce stock ใน `Order::booted()` ไม่อยู่ใน transaction → ไม่ atomic
 **ไฟล์:** `clinic-backend/app/Models/Order.php:131-143` + `PaymentController::handleCallback:203-233`
 
 **ทำไมเป็น bug:**
