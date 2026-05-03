@@ -36,32 +36,50 @@ class CustomerController extends Controller
         }
 
         // For web requests, return view
-        // Eager load addresses to avoid N+1 query problem
-        $customers = User::with('addresses')->orderBy('created_at', 'desc')->paginate(15);
+        // Eager-load everything the per-customer enrichment loop needs so we
+        // don't issue a fresh batch of queries for each row on the page.
+        $customers = User::with(['addresses', 'orders.orderItems', 'claimedRewards'])
+            ->orderBy('created_at', 'desc')
+            ->paginate(15);
 
-        // Add membership info and progress to each customer
+        $customerIds = $customers->getCollection()->pluck('id')->all();
+
+        // Aggregate the reward + redemption counts up front in two queries
+        // total instead of four queries per customer.
+        $rewardCounts = UserClaimedReward::selectRaw(
+            'user_id, '.
+            "SUM(CASE WHEN status='pending' THEN 1 ELSE 0 END) AS pending_count, ".
+            "SUM(CASE WHEN status='approved' THEN 1 ELSE 0 END) AS approved_count, ".
+            "SUM(CASE WHEN status='approved' THEN earned_free_items ELSE 0 END) AS approved_earned"
+        )
+            ->whereIn('user_id', $customerIds)
+            ->groupBy('user_id')
+            ->get()
+            ->keyBy('user_id');
+
+        $redemptionTotals = FreeItemRedemption::selectRaw('user_id, SUM(quantity) AS total_redeemed')
+            ->whereIn('user_id', $customerIds)
+            ->whereNotIn('status', ['cancelled'])
+            ->groupBy('user_id')
+            ->get()
+            ->keyBy('user_id');
+
         $membershipProgressService = new MembershipProgressService();
-        $customers->getCollection()->each(function ($customer) use ($membershipProgressService) {
+        $customers->getCollection()->each(function ($customer) use ($membershipProgressService, $rewardCounts, $redemptionTotals) {
             $customer->membership_info = $customer->getMembershipInfo();
             $customer->membership_status = $customer->getMembershipStatus();
 
-            // Get membership progress data
             $progress = $membershipProgressService->getMembershipProgress($customer);
             $customer->total_purchased_quantity = $progress['total_purchased_quantity'];
             $customer->current_points = $progress['current_points'];
             $customer->total_spent = $progress['total_spent'];
-            $customer->pending_rewards = UserClaimedReward::where('user_id', $customer->id)
-                ->where('status', 'pending')->count();
-            $customer->total_claimed_rewards = UserClaimedReward::where('user_id', $customer->id)
-                ->where('status', 'approved')->count();
 
-            // Calculate remaining free items
-            $totalEarned = UserClaimedReward::where('user_id', $customer->id)
-                ->where('status', 'approved')
-                ->sum('earned_free_items');
-            $totalRedeemed = FreeItemRedemption::where('user_id', $customer->id)
-                ->whereNotIn('status', ['cancelled'])
-                ->sum('quantity');
+            $rc = $rewardCounts->get($customer->id);
+            $customer->pending_rewards = (int) ($rc->pending_count ?? 0);
+            $customer->total_claimed_rewards = (int) ($rc->approved_count ?? 0);
+
+            $totalEarned = (int) ($rc->approved_earned ?? 0);
+            $totalRedeemed = (int) ($redemptionTotals->get($customer->id)->total_redeemed ?? 0);
             $customer->remaining_free_items = $totalEarned - $totalRedeemed;
         });
 

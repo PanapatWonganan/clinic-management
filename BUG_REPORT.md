@@ -301,7 +301,7 @@ $imageName = time() . '_' . $image->getClientOriginalName();
 
 ---
 
-### [ ] M4. `MembershipProgressService::getMembershipProgress` ที่ ProfileController call จาก loop ใน CustomerController:44 — N+1 รุนแรง
+### [x] M4. `MembershipProgressService::getMembershipProgress` ที่ ProfileController call จาก loop ใน CustomerController:44 — N+1 รุนแรง
 **ไฟล์:** `clinic-backend/app/Http/Controllers/Admin/CustomerController.php:42-66`
 
 **ทำไมเป็น bug:**
@@ -317,7 +317,7 @@ $imageName = time() . '_' . $image->getClientOriginalName();
 
 ---
 
-### [ ] M5. `OrderController::index` page-level eager load อ่านได้ดี แต่ membership progress ที่ `ProfileController::getMembershipProgress` ก็ N+1 ใน loop bundleDeals
+### [x] M5. `OrderController::index` page-level eager load อ่านได้ดี แต่ membership progress ที่ `ProfileController::getMembershipProgress` ก็ N+1 ใน loop bundleDeals
 **ไฟล์:** `clinic-backend/app/Http/Controllers/ProfileController.php:201-233`
 
 **ทำไมเป็น bug:**
@@ -409,7 +409,7 @@ Switch ครอบทุก enum case แล้ว แต่ยังมี `de
 
 ---
 
-### [ ] M12. `MembershipProgressService::getMembershipProgress` รับ user แต่ใน CustomerController ไม่ส่ง user ที่ pre-loaded
+### [x] M12. `MembershipProgressService::getMembershipProgress` รับ user แต่ใน CustomerController ไม่ส่ง user ที่ pre-loaded
 ดู M4 — รวมประเด็นเดียวกัน
 
 ---

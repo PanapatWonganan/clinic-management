@@ -8,21 +8,50 @@ use App\Models\UserClaimedReward;
 
 class MembershipProgressService
 {
+    /** @var array<int, \Illuminate\Support\Collection> */
+    private static array $bundleDealsCache = [];
+
+    /**
+     * Per-process cache for bundle deals keyed by role id. Used to keep the
+     * admin customer-list page from re-querying identical bundle-deal sets
+     * once per customer.
+     */
+    public static function cachedBundleDealsForRole(int $roleId)
+    {
+        if (!isset(self::$bundleDealsCache[$roleId])) {
+            self::$bundleDealsCache[$roleId] = MembershipBundleDeal::where('is_active', true)
+                ->where('role_id', $roleId)
+                ->orderBy('level')
+                ->get();
+        }
+
+        return self::$bundleDealsCache[$roleId];
+    }
+
     /**
      * Get membership progress for a user
      */
     public function getMembershipProgress(User $user): array
     {
-        // Calculate real data from user's orders
-        // ไม่นับ orders ที่เป็น free item (is_free_item_order = true)
-        $completedOrders = $user->orders()
-            ->whereIn('status', ['pending_payment', 'payment_uploaded', 'paid', 'confirmed', 'processing', 'shipped', 'delivered'])
-            ->where(function ($query) {
-                $query->where('is_free_item_order', false)
-                      ->orWhereNull('is_free_item_order');
-            })
-            ->with('orderItems')
-            ->get();
+        $countableStatuses = ['pending_payment', 'payment_uploaded', 'paid', 'confirmed', 'processing', 'shipped', 'delivered'];
+
+        // Prefer pre-loaded orders/claimedRewards relations to avoid N+1 in
+        // admin list pages that paginate many users at once.
+        if ($user->relationLoaded('orders')) {
+            $completedOrders = $user->orders->filter(function ($o) use ($countableStatuses) {
+                return in_array($o->status, $countableStatuses, true)
+                    && (!$o->is_free_item_order);
+            })->values();
+        } else {
+            $completedOrders = $user->orders()
+                ->whereIn('status', $countableStatuses)
+                ->where(function ($query) {
+                    $query->where('is_free_item_order', false)
+                          ->orWhereNull('is_free_item_order');
+                })
+                ->with('orderItems')
+                ->get();
+        }
 
         $totalSpent = $completedOrders->sum('total_amount');
         $totalPurchasedQuantity = $completedOrders->sum(function ($order) {
@@ -32,10 +61,13 @@ class MembershipProgressService
         // Calculate points: 1 point per 10,000 baht spent
         $currentPoints = floor($totalSpent / 10000);
 
-        // Get claimed rewards (approved)
-        $claimedRewards = UserClaimedReward::where('user_id', $user->id)
-            ->where('status', 'approved')
-            ->get();
+        if ($user->relationLoaded('claimedRewards')) {
+            $claimedRewards = $user->claimedRewards->where('status', 'approved')->values();
+        } else {
+            $claimedRewards = UserClaimedReward::where('user_id', $user->id)
+                ->where('status', 'approved')
+                ->get();
+        }
 
         // Map membership_type to role_id
         $membershipToRoleId = [
@@ -47,11 +79,9 @@ class MembershipProgressService
 
         $roleId = $membershipToRoleId[$user->membership_type] ?? 1;
 
-        // Get bundle deals for user's membership type
-        $bundleDeals = MembershipBundleDeal::where('is_active', true)
-            ->where('role_id', $roleId)
-            ->orderBy('level')
-            ->get();
+        // Get bundle deals for user's membership type — cache per request so
+        // batch loops over many users don't re-query the same role's deals.
+        $bundleDeals = self::cachedBundleDealsForRole($roleId);
 
         $levelProgress = [];
         $totalEarnedItems = 0;
@@ -64,20 +94,27 @@ class MembershipProgressService
         if ($hasClaimedAnyReward) {
             $latestClaim = $claimedRewards->sortByDesc('created_at')->first();
 
-            // ไม่นับ orders ที่เป็น free item
-            $ordersQuery = $user->orders()
-                ->whereIn('status', ['pending_payment', 'payment_uploaded', 'paid', 'confirmed', 'processing', 'shipped', 'delivered'])
-                ->where(function ($q) {
-                    $q->where('is_free_item_order', false)->orWhereNull('is_free_item_order');
-                });
-
-            if ($latestClaim->order_id) {
-                $ordersQuery->where('id', '>', $latestClaim->order_id);
+            if ($user->relationLoaded('orders')) {
+                $ordersAfterClaim = $completedOrders->filter(function ($o) use ($latestClaim) {
+                    return $latestClaim->order_id
+                        ? $o->id > $latestClaim->order_id
+                        : $o->created_at > $latestClaim->created_at;
+                })->values();
             } else {
-                $ordersQuery->where('created_at', '>', $latestClaim->created_at);
-            }
+                $ordersQuery = $user->orders()
+                    ->whereIn('status', $countableStatuses)
+                    ->where(function ($q) {
+                        $q->where('is_free_item_order', false)->orWhereNull('is_free_item_order');
+                    });
 
-            $ordersAfterClaim = $ordersQuery->with('orderItems')->get();
+                if ($latestClaim->order_id) {
+                    $ordersQuery->where('id', '>', $latestClaim->order_id);
+                } else {
+                    $ordersQuery->where('created_at', '>', $latestClaim->created_at);
+                }
+
+                $ordersAfterClaim = $ordersQuery->with('orderItems')->get();
+            }
 
             $effectiveQuantity = $ordersAfterClaim->sum(function ($order) {
                 return $order->orderItems->sum('quantity');

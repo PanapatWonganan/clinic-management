@@ -243,4 +243,13 @@ class User extends \Illuminate\Foundation\Auth\User
     {
         return $this->customerAddresses()->orderByDesc('is_default')->orderBy('name')->get();
     }
+
+    /**
+     * Relationship with claimed rewards — used by admin customer pages to
+     * eager-load and avoid N+1 queries when enumerating customers.
+     */
+    public function claimedRewards()
+    {
+        return $this->hasMany(\App\Models\UserClaimedReward::class);
+    }
 }
