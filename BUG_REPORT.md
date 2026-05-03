@@ -345,7 +345,7 @@ $imageName = time() . '_' . $image->getClientOriginalName();
 
 ---
 
-### [ ] M7. Frontend `_handleUnauthorized` ลบ token แต่ไม่ navigate ไป login
+### [x] M7. Frontend `_handleUnauthorized` ลบ token แต่ไม่ navigate ไป login
 **ไฟล์:** `lib/services/api_service.dart:32-38` + `lib/services/auth_service.dart:29-33`
 
 **ทำไมเป็น bug:**

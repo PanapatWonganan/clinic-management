@@ -1,12 +1,15 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import 'package:mime/mime.dart';
 import 'package:file_picker/file_picker.dart';
 import 'auth_service.dart';
 import '../constants/app_config.dart';
+import '../main.dart' show appNavigatorKey;
+import '../screens/login_screen.dart';
 
 class ApiService {
   // Use centralized configuration for base URL
@@ -29,11 +32,21 @@ class ApiService {
   }
 
   // Why: when the server rejects our token, keeping it in memory means every
-  // subsequent request loops on the same 401. Drop it locally so the next UI
-  // tick routes the user back to login.
+  // subsequent request loops on the same 401. Drop it locally and push the
+  // user back to login so they aren't stuck on a screen that 401s on every
+  // tap.
   static Future<void> _handleUnauthorized(http.Response response) async {
     if (response.statusCode == 401 && AuthService.instance.token != null) {
       await AuthService.instance.clearSessionDueToUnauthorized();
+      // Navigate via the global navigator key so any caller can react to a
+      // session expiry without each screen having to handle it manually.
+      final navigator = appNavigatorKey.currentState;
+      if (navigator != null) {
+        navigator.pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const LoginScreen()),
+          (route) => false,
+        );
+      }
     }
   }
 

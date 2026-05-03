@@ -7,6 +7,11 @@ import 'screens/home_screen.dart';
 import 'services/auth_service.dart';
 import 'services/delivery_service.dart';
 
+// Global navigator key — used by ApiService to push the user back to the
+// login screen when the server invalidates their token, so they don't get
+// stuck on a screen that loops 401s on every interaction.
+final GlobalKey<NavigatorState> appNavigatorKey = GlobalKey<NavigatorState>();
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('th_TH', null);
@@ -31,6 +36,7 @@ class ClinicApp extends StatelessWidget {
     return MaterialApp(
       title: 'Exquiller Member',
       debugShowCheckedModeBanner: false,
+      navigatorKey: appNavigatorKey,
       theme: ThemeData(
         fontFamily: 'Prompt',
         primarySwatch: Colors.purple,
