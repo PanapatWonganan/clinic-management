@@ -379,7 +379,7 @@ $imageName = time() . '_' . $image->getClientOriginalName();
 
 ---
 
-### [ ] M9. `use_build_context_synchronously` analyzer warnings — 25+ ครั้ง
+### [x] M9. `use_build_context_synchronously` analyzer warnings — 25+ ครั้ง
 **ไฟล์:** `checkout_screen.dart` 18 จุด, `home_screen.dart` 3 จุด, `login_screen.dart` 4 จุด, `profile_*.dart` 7 จุด, `payment_pending_screen.dart:323`
 
 **ทำไมเป็น bug:**

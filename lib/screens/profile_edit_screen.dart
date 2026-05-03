@@ -85,6 +85,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
 
     // บันทึกข้อมูล
     final success = await ProfileService.instance.saveProfile(updatedProfile);
+    if (!mounted) return;
 
     if (success) {
       ScaffoldMessenger.of(context).showSnackBar(

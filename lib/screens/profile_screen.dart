@@ -114,6 +114,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         // ถ้ามีการแก้ไขข้อมูล ให้โหลดข้อมูลใหม่และส่ง result กลับ
         if (result == true) {
           await _loadUserProfile();
+          if (!mounted) return;
           Navigator.pop(context, true); // ส่ง result กลับไปยัง Home Screen
         }
         break;
@@ -165,6 +166,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
       // Call logout service
       await AuthService.instance.logout();
+      if (!mounted) return;
 
       // Close loading dialog
       Navigator.pop(context);
@@ -184,6 +186,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
       );
     } catch (e) {
+      if (!mounted) return;
       // Close loading dialog if still open
       Navigator.pop(context);
 

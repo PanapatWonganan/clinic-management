@@ -518,6 +518,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     try {
       // เรียก API เพื่อแลกรางวัล
       final result = await ProfileService.instance.claimReward(reward['level']);
+      if (!mounted) return;
 
       if (result != null && result['success'] == true) {
         // แสดง dialog สำเร็จ
@@ -578,6 +579,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       }
     } catch (e) {
       debugPrint('Error in _onClaimReward: $e');
+      if (!mounted) return;
       // แสดง dialog ข้อผิดพลาดการเชื่อมต่อ
       showDialog(
         context: context,

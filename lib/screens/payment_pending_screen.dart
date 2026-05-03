@@ -308,6 +308,7 @@ class _PaymentPendingScreenState extends State<PaymentPendingScreen> {
         data: {'order_id': widget.orderId},
         fileFieldName: 'files',
       );
+      if (!mounted) return;
 
       setState(() {
         isUploading = false;
@@ -334,6 +335,7 @@ class _PaymentPendingScreenState extends State<PaymentPendingScreen> {
         _showErrorMessage('เกิดข้อผิดพลาดในการเชื่อมต่อ');
       }
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         isUploading = false;
       });

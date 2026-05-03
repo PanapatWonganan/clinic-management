@@ -525,7 +525,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       final data = json.decode(response.body);
 
       // Close loading dialog
-      if (context.mounted) {
+      if (mounted) {
         Navigator.pop(context);
       }
 
@@ -539,7 +539,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           // Upload slip if user selected promptpay
           bool slipUploadSuccess = true;
           try {
-            if (context.mounted) {
+            if (mounted) {
               showDialog(
                 context: context,
                 barrierDismissible: false,
@@ -565,7 +565,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           }
 
           // Close loading dialog
-          if (context.mounted) {
+          if (mounted) {
             Navigator.pop(context);
           }
 
@@ -623,7 +623,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       }
     } catch (e) {
       // Close loading dialog if still open
-      if (context.mounted) {
+      if (mounted) {
         Navigator.pop(context);
       }
 
@@ -728,7 +728,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       debugPrint('API response body: ${response.body}');
 
       // Close loading dialog
-      if (context.mounted) {
+      if (mounted) {
         Navigator.pop(context);
       }
 
@@ -742,7 +742,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         widget.onOrderCreated?.call();
 
         // Close loading dialog
-        if (context.mounted) {
+        if (mounted) {
           Navigator.pop(context);
         }
 
@@ -751,7 +751,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           // Credit Card - Open Payment Gateway WebView
           try {
             // Show loading for payment creation
-            if (context.mounted) {
+            if (mounted) {
               showDialog(
                 context: context,
                 barrierDismissible: false,
@@ -774,7 +774,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
             debugPrint('Payment creation response: ${paymentResponse.body}');
 
-            if (context.mounted) {
+            if (mounted) {
               Navigator.pop(context); // Close loading dialog
             }
 
@@ -786,7 +786,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 final paymentId = paymentData['data']['payment_id'];
 
                 // Open WebView for payment
-                if (context.mounted) {
+                if (mounted) {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -802,7 +802,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 }
               } else {
                 // Error creating payment
-                if (context.mounted) {
+                if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text(
@@ -814,7 +814,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               }
             } else {
               // HTTP error
-              if (context.mounted) {
+              if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
                     content: Text('ไม่สามารถเชื่อมต่อ Payment Gateway ได้'),
@@ -825,7 +825,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             }
           } catch (e) {
             debugPrint('Error creating payment: $e');
-            if (context.mounted) {
+            if (mounted) {
               Navigator.pop(context); // Close loading dialog if open
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
@@ -840,7 +840,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           bool slipUploadSuccess = true;
           try {
             // Update loading dialog message
-            if (context.mounted) {
+            if (mounted) {
               showDialog(
                 context: context,
                 barrierDismissible: false,
@@ -866,11 +866,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           }
 
           // Close loading dialog
-          if (context.mounted) {
+          if (mounted) {
             Navigator.pop(context);
           }
 
-          if (context.mounted) {
+          if (mounted) {
             // Show appropriate message
             if (!slipUploadSuccess) {
               ScaffoldMessenger.of(context).showSnackBar(
@@ -900,7 +900,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       } else {
         // Error - show error message
         final errorData = json.decode(response.body);
-        if (context.mounted) {
+        if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('เกิดข้อผิดพลาด: ${errorData['message']}'),
@@ -916,7 +916,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       debugPrint('===========================');
 
       // Close loading dialog if still open
-      if (context.mounted) {
+      if (mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
