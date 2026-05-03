@@ -296,32 +296,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     }
   }
 
-  Future<void> _loadDeliveryOptions() async {
-    setState(() {
-      isLoadingDeliveryOptions = true;
-    });
-
-    try {
-      // Try to get delivery options based on user's district and province
-      final userDistrict = _getUserDistrict();
-      final userProvince = _getUserProvince();
-
-      final options = await DeliveryService.getDeliveryOptionsForAddress(
-          userDistrict, userProvince);
-
-      setState(() {
-        availableDeliveryOptions = options;
-        isLoadingDeliveryOptions = false;
-      });
-    } catch (e) {
-      debugPrint('Error loading delivery options: $e');
-      // Fallback to sample options
-      setState(() {
-        availableDeliveryOptions = DeliveryOption.getSampleOptions();
-        isLoadingDeliveryOptions = false;
-      });
-    }
-  }
 
   Future<void> _loadDeliveryOptionsForAddress(CustomerAddress address) async {
     setState(() {
@@ -407,53 +381,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     }
   }
 
-  String? _extractDistrictFromAddress(String address) {
-    // Simple district extraction - you might want to make this more sophisticated
-    // This is a placeholder - adjust based on your address format
-    final parts = address.split(' ');
-    for (final part in parts) {
-      if (part.startsWith('แขวง')) {
-        return part;
-      }
-    }
-    return null;
-  }
-
-  String? _getUserDistrict() {
-    // First try to get district from the district field
-    if (userProfile.district.isNotEmpty) {
-      // For Bangkok districts, make sure name starts with 'แขวง'
-      if (userProfile.province == 'กรุงเทพมหานคร' ||
-          userProfile.province.isEmpty) {
-        if (userProfile.district.startsWith('แขวง')) {
-          return userProfile.district;
-        } else {
-          return 'แขวง${userProfile.district}';
-        }
-      } else {
-        // For other provinces, use district name as is (อำเภอ)
-        if (userProfile.district.startsWith('อำเภอ')) {
-          return userProfile.district;
-        } else {
-          return 'อำเภอ${userProfile.district}';
-        }
-      }
-    }
-
-    // Fallback to extracting from address
-    if (userProfile.address.isNotEmpty) {
-      return _extractDistrictFromAddress(userProfile.address);
-    }
-
-    return null;
-  }
-
-  String? _getUserProvince() {
-    if (userProfile.province.isNotEmpty) {
-      return userProfile.province;
-    }
-    return null;
-  }
 
   bool _canProceedWithCheckout() {
     // Check if cart is not empty
@@ -468,21 +395,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     if (isLoadingAddresses || isLoadingDeliveryOptions) return false;
 
     return true;
-  }
-
-  Future<void> _handleEditAddress() async {
-    final result = await Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => const ProfileEditScreen()),
-    );
-
-    // ถ้าผู้ใช้บันทึกข้อมูลแล้ว ให้โหลดข้อมูลใหม่และ delivery options ใหม่
-    if (result == true) {
-      debugPrint('Profile updated, reloading data...');
-      await ProfileService.instance.forceReloadProfile();
-      await _loadUserProfile();
-      // Delivery options will be reloaded automatically in _loadUserProfile
-    }
   }
 
   // Handle free item redemption - separate flow from normal checkout

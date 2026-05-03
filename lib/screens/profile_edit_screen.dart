@@ -25,7 +25,6 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
   int? _selectedSubDistrictId;
   String _detailAddress = '';
 
-  bool _isLoading = true;
   final ThaiAddressService _addressService = ThaiAddressService.instance;
 
   @override
@@ -45,7 +44,6 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
       _selectedProvinceId = profile.provinceId;
       _selectedDistrictId = profile.districtId;
       _selectedSubDistrictId = profile.subDistrictId;
-      _isLoading = false;
     });
   }
 
@@ -58,12 +56,12 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
   }
 
   Future<void> _handleSave() async {
-    // Get address names from IDs for backward compatibility
+    // Get address names from IDs for backward compatibility.
+    // The district name itself is sent to the backend through the
+    // sub-district payload; only province + subDistrict are read below,
+    // so we don't fetch the district lookup just to throw it away.
     final province = _selectedProvinceId != null
         ? await _addressService.getProvinceById(_selectedProvinceId!)
-        : null;
-    final district = _selectedDistrictId != null
-        ? await _addressService.getDistrictById(_selectedDistrictId!)
         : null;
     final subDistrict = _selectedSubDistrictId != null
         ? await _addressService.getSubDistrictById(_selectedSubDistrictId!)

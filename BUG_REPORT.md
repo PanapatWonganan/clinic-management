@@ -399,7 +399,7 @@ Switch ครอบทุก enum case แล้ว แต่ยังมี `de
 
 ---
 
-### [ ] M11. `_loadDeliveryOptions` (`checkout_screen.dart:299`) และ `_handleEditAddress` (line 473), `_buildInputField` (`payment_method_card.dart:907`) ฯลฯ — unused declarations
+### [x] M11. `_loadDeliveryOptions` (`checkout_screen.dart:299`) และ `_handleEditAddress` (line 473), `_buildInputField` (`payment_method_card.dart:907`) ฯลฯ — unused declarations
 **ไฟล์:** ดู analyzer output
 
 **ทำไมเป็น bug:**
@@ -414,14 +414,14 @@ Switch ครอบทุก enum case แล้ว แต่ยังมี `de
 
 ---
 
-### [ ] M13. Reward card `_parseToDouble`, `_claimRewardToDatabase` declared แต่ไม่ใช้
+### [x] M13. Reward card `_parseToDouble`, `_claimRewardToDatabase` declared แต่ไม่ใช้
 **ไฟล์:** `lib/widgets/reward_card.dart:47, 405`
 
 **ทำไมเป็น bug:** dead code; ถ้า claim flow เปลี่ยนไปแล้ว ควรลบ — ไม่งั้นคนอ่านต่อจะเข้าใจผิดว่ายังใช้
 
 ---
 
-### [ ] M14. `home_screen.dart:419` field `_pendingFreeItemPicked` — unused
+### [x] M14. `home_screen.dart:419` field `_pendingFreeItemPicked` — unused
 **ไฟล์:** `lib/screens/home_screen.dart:419`
 
 **ทำไมเป็น bug:** field ไม่ใช้ — กิน memory เล็กน้อย และเป็นสัญญาณว่า logic free item อาจจะมี edge case ที่ลืม wire
@@ -449,7 +449,7 @@ Switch ครอบทุก enum case แล้ว แต่ยังมี `de
 ### [ ] L6. Pint style issues (82 ไฟล์)
 รัน `./vendor/bin/pint` ก็จะ fix อัตโนมัติ — ไม่กระทบ behavior
 
-### [ ] L7. `lib/screens/profile_edit_screen.dart:65` `district` local variable unused
+### [x] L7. `lib/screens/profile_edit_screen.dart:65` `district` local variable unused
 ลบทิ้งหรือใช้
 
 ### [ ] L8. `clinic-backend/app/Http/Controllers/CartController.php` เป็น empty stub

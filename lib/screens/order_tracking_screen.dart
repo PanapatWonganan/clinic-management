@@ -4,7 +4,6 @@ import '../constants/app_text_styles.dart';
 import '../constants/app_config.dart';
 import '../models/order.dart';
 import '../widgets/custom_app_bar.dart';
-import 'order_history_screen.dart';
 import 'package:intl/intl.dart';
 
 class OrderTrackingScreen extends StatefulWidget {
@@ -111,28 +110,6 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
         }
       });
     }
-  }
-
-  void _navigateToOrderHistory() {
-    // Show completion message first
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('คำสั่งซื้อเสร็จสิ้นแล้ว! กำลังไปยังประวัติการสั่งซื้อ'),
-        backgroundColor: AppColors.mainPurple,
-        duration: Duration(seconds: 2),
-      ),
-    );
-
-    // Navigate to order history
-    Future.delayed(const Duration(seconds: 2), () {
-      if (mounted) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(
-            builder: (context) => const OrderHistoryScreen(),
-          ),
-        );
-      }
-    });
   }
 
   @override

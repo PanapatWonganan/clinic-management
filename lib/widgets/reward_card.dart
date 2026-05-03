@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
-import 'dart:convert';
 import '../constants/app_colors.dart';
 import '../constants/app_text_styles.dart';
-import '../services/api_service.dart';
 import '../screens/redeem_free_items_screen.dart';
 
 class RewardCard extends StatefulWidget {
@@ -43,31 +41,6 @@ class _RewardCardState extends State<RewardCard> {
 
   // ราคาสินค้าต่อชิ้น (ใช้ productPrice ที่ส่งมา หรือ default 2500)
   double get _productPrice => widget.productPrice ?? 2500.0;
-
-  double _parseToDouble(dynamic value, double fallback) {
-    if (value == null) return fallback;
-
-    if (value is num) {
-      return value.toDouble();
-    }
-
-    if (value is String) {
-      // Handle malformed string like "2500.002500.002500.002500.002500.00"
-      // Extract the first valid number
-      final parts = value.split('.');
-      if (parts.isNotEmpty) {
-        final firstPart = parts[0];
-        final parsed = double.tryParse(firstPart);
-        if (parsed != null) return parsed;
-      }
-
-      // Try parsing the whole string as a fallback
-      final parsed = double.tryParse(value);
-      if (parsed != null) return parsed;
-    }
-
-    return fallback;
-  }
 
   String _formatPrice(double price) {
     return price.toInt().toString();
@@ -197,7 +170,7 @@ class _RewardCardState extends State<RewardCard> {
                   // ตัวเลือก 1: Reward เก่า
                   _buildRewardOption(
                     title: 'สิทธิ์สะสมเดิม',
-                    subtitle: 'Level ${reward!['level']} - ฟรี ${reward['earned_free_items']} ชิ้น',
+                    subtitle: 'Level ${reward['level']} - ฟรี ${reward['earned_free_items']} ชิ้น',
                     isSelected: selectedRewardType == 'existing',
                     onTap: () => setState(() => selectedRewardType = 'existing'),
                     color: AppColors.lightGray,
@@ -399,76 +372,6 @@ class _RewardCardState extends State<RewardCard> {
       'required_quantity': requiredQuantity,
       'total_quantity': totalQuantity.toInt(),
     };
-  }
-
-  // เรียก API บันทึกการแลกรางวัลลง database
-  Future<void> _claimRewardToDatabase(int level, BuildContext context) async {
-    try {
-      debugPrint('Claiming reward level $level to database...');
-
-      final response = await ApiService.post('/membership/claim-reward', {
-        'level': level,
-        'reward_type': 'bundle_deal',
-      });
-
-      debugPrint('Claim reward response: ${response.statusCode} - ${response.body}');
-
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        final data = json.decode(response.body);
-        if (data['success'] == true) {
-          debugPrint('Reward claimed successfully!');
-          // Reload membership data
-          if (widget.onRewardClaimed != null) {
-            widget.onRewardClaimed!();
-          }
-        } else {
-          debugPrint('Claim failed: ${data['message']}');
-          // แสดง error ถ้ามี (เช่น แลกไปแล้ว)
-          if (context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(data['message'] ?? 'เกิดข้อผิดพลาด'),
-                backgroundColor: Colors.orange,
-              ),
-            );
-          }
-        }
-      } else {
-        // Handle error responses (422, 400, 500, etc.)
-        debugPrint('Claim error: ${response.statusCode} - ${response.body}');
-        final data = json.decode(response.body);
-        String errorMessage = 'เกิดข้อผิดพลาด';
-
-        if (data['message'] != null) {
-          errorMessage = data['message'];
-        } else if (data['errors'] != null) {
-          // Laravel validation errors
-          final errors = data['errors'] as Map<String, dynamic>;
-          errorMessage = errors.values.first is List
-              ? errors.values.first[0]
-              : errors.values.first.toString();
-        }
-
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(errorMessage),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-      }
-    } catch (e) {
-      debugPrint('Error claiming reward: $e');
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('เกิดข้อผิดพลาด: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
   }
 
   void _showRewardConfirmationDialog(BuildContext context, Map<String, dynamic> reward) {

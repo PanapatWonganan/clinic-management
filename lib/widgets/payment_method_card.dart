@@ -904,49 +904,4 @@ class _PaymentMethodCardState extends State<PaymentMethodCard> {
     return List.from(uploadedSlips);
   }
 
-  Widget _buildInputField({
-    required String label,
-    required String hintText,
-    TextInputType keyboardType = TextInputType.text,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: AppTextStyles.body12Regular.copyWith(
-            color: AppColors.purpleText,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: AppColors.lightGray.withOpacity(0.3),
-              width: 1,
-            ),
-          ),
-          child: TextField(
-            keyboardType: keyboardType,
-            style: AppTextStyles.body14Medium.copyWith(
-              color: AppColors.purpleText,
-            ),
-            decoration: InputDecoration(
-              hintText: hintText,
-              hintStyle: AppTextStyles.body12Regular.copyWith(
-                color: AppColors.lightGray,
-              ),
-              border: InputBorder.none,
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 12,
-                vertical: 10,
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
 }

@@ -416,9 +416,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   int get _pendingFreeItemQuota =>
       _pendingReward == null ? 0 : _parseNum(_pendingReward!['free_quantity']).toInt();
 
-  int get _pendingFreeItemPicked =>
-      _pendingFreeItems.fold<int>(0, (s, it) => s + ((it['quantity'] ?? 0) as int));
-
   double _calculateTotalPrice() {
     return productCategories.fold(0.0, (total, category) {
       return total + (category.quantity * category.price);

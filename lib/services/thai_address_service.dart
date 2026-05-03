@@ -14,10 +14,6 @@ class ThaiAddressService {
   // Thai address data loaded from API
   List<Province> _provinces = [];
 
-  final List<District> _districts = [];
-
-  final List<SubDistrict> _subDistricts = [];
-
   // Get all provinces
   Future<List<Province>> getProvinces() async {
     if (_provinces.isEmpty) {
