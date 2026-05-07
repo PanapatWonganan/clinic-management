@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../constants/app_colors.dart';
 import '../widgets/custom_app_bar.dart';
 import '../services/api_service.dart';
+import '../services/profile_service.dart';
 import 'redeem_free_items_screen.dart';
 
 class MyFreeItemsScreen extends StatefulWidget {
@@ -15,18 +16,28 @@ class MyFreeItemsScreen extends StatefulWidget {
 class _MyFreeItemsScreenState extends State<MyFreeItemsScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+
+  // Approved rewards with remaining > 0 (พร้อมใช้)
   List<Map<String, dynamic>> rewards = [];
+  // Pending rewards (รออนุมัติ admin)
+  List<Map<String, dynamic>> pendingRewards = [];
+  // Levels unlocked but not claimed yet (ยังไม่ได้ claim)
+  List<Map<String, dynamic>> availableRewards = [];
+  // Redemption history
   List<Map<String, dynamic>> redemptionHistory = [];
+
   Map<String, dynamic>? summary;
   bool isLoadingRewards = true;
   bool isLoadingHistory = true;
   String? errorMessage;
+  // Per-level claim-in-progress flag เพื่อกัน double-tap
+  final Set<int> _claimingLevels = {};
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    _loadMyRewards();
+    _loadAll();
     _loadRedemptionHistory();
   }
 
@@ -36,34 +47,41 @@ class _MyFreeItemsScreenState extends State<MyFreeItemsScreen>
     super.dispose();
   }
 
-  Future<void> _loadMyRewards() async {
-    try {
-      setState(() {
-        isLoadingRewards = true;
-        errorMessage = null;
-      });
+  Future<void> _loadAll() async {
+    setState(() {
+      isLoadingRewards = true;
+      errorMessage = null;
+    });
 
-      final response = await ApiService.get('/my-rewards');
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
+    try {
+      final results = await Future.wait([
+        ApiService.get('/my-rewards?include_pending=1'),
+        ProfileService.instance.getMembershipProgress(),
+      ]);
+
+      // /my-rewards
+      final rewardsResponse = results[0] as dynamic;
+      if (rewardsResponse.statusCode == 200) {
+        final data = json.decode(rewardsResponse.body);
         if (data['success'] == true) {
-          setState(() {
-            rewards = List<Map<String, dynamic>>.from(data['data']['rewards'] ?? []);
-            summary = data['data']['summary'];
-            isLoadingRewards = false;
-          });
-        } else {
-          setState(() {
-            errorMessage = data['message'] ?? 'Failed to load rewards';
-            isLoadingRewards = false;
-          });
+          rewards = List<Map<String, dynamic>>.from(
+              data['data']['rewards'] ?? []);
+          pendingRewards = List<Map<String, dynamic>>.from(
+              data['data']['pending_rewards'] ?? []);
+          summary = Map<String, dynamic>.from(data['data']['summary'] ?? {});
         }
-      } else {
-        setState(() {
-          errorMessage = 'Failed to load rewards';
-          isLoadingRewards = false;
-        });
       }
+
+      // /membership/progress → available_rewards
+      final progressData = results[1] as Map<String, dynamic>?;
+      if (progressData != null) {
+        availableRewards = List<Map<String, dynamic>>.from(
+            progressData['available_rewards'] ?? []);
+      }
+
+      setState(() {
+        isLoadingRewards = false;
+      });
     } catch (e) {
       setState(() {
         errorMessage = 'Error: $e';
@@ -83,7 +101,8 @@ class _MyFreeItemsScreenState extends State<MyFreeItemsScreen>
         final data = json.decode(response.body);
         if (data['success'] == true) {
           setState(() {
-            redemptionHistory = List<Map<String, dynamic>>.from(data['data'] ?? []);
+            redemptionHistory =
+                List<Map<String, dynamic>>.from(data['data'] ?? []);
             isLoadingHistory = false;
           });
         }
@@ -98,12 +117,90 @@ class _MyFreeItemsScreenState extends State<MyFreeItemsScreen>
     }
   }
 
+  // levels ที่ user ได้ claim แล้ว (approved + pending) — ใช้กรอง available
+  // ไม่ให้ซ้ำกับที่ pending/approved อยู่
+  Set<int> get _alreadyClaimedLevels {
+    final s = <int>{};
+    for (final r in rewards) {
+      s.add(r['level'] as int);
+    }
+    for (final r in pendingRewards) {
+      s.add(r['level'] as int);
+    }
+    return s;
+  }
+
+  // available levels หลังตัดที่ claim แล้วออก (กัน double-claim)
+  List<Map<String, dynamic>> get _unclaimedAvailable {
+    final claimed = _alreadyClaimedLevels;
+    return availableRewards
+        .where((r) => !claimed.contains(r['level'] as int))
+        .toList();
+  }
+
+  int get _totalRemaining => (summary?['total_remaining'] ?? 0) as int;
+
+  int get _totalPending => pendingRewards.fold<int>(
+      0, (s, r) => s + ((r['earned_free_items'] ?? 0) as int));
+
+  int get _totalAvailableUnclaimed => _unclaimedAvailable.fold<int>(
+      0, (s, r) => s + ((r['earned_free_items'] ?? 0) as int));
+
+  int get _grandTotal =>
+      _totalRemaining + _totalPending + _totalAvailableUnclaimed;
+
+  Future<void> _claimLevel(Map<String, dynamic> level) async {
+    final lvl = level['level'] as int;
+    if (_claimingLevels.contains(lvl)) return;
+
+    setState(() {
+      _claimingLevels.add(lvl);
+    });
+
+    try {
+      final result = await ProfileService.instance.claimReward(lvl);
+
+      if (!mounted) return;
+
+      if (result != null && result['success'] == true) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content:
+                Text('ส่งคำขอแลกของแถม Level $lvl แล้ว รอแอดมินอนุมัติ'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        await _loadAll();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result?['message'] ?? 'แลกของแถมไม่สำเร็จ'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('เกิดข้อผิดพลาด: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _claimingLevels.remove(lvl);
+        });
+      }
+    }
+  }
+
   void _navigateToRedeem() async {
-    final totalRemaining = summary?['total_remaining'] ?? 0;
-    if (totalRemaining <= 0) {
+    if (_totalRemaining <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('ไม่มีสิทธิ์ของแถมคงเหลือ'),
+          content: Text('ไม่มีสิทธิ์ของแถมที่พร้อมใช้ — รอแอดมินอนุมัติก่อน'),
           backgroundColor: Colors.orange,
         ),
       );
@@ -112,7 +209,7 @@ class _MyFreeItemsScreenState extends State<MyFreeItemsScreen>
 
     final combinedReward = {
       'id': 'combined',
-      'remaining_free_items': totalRemaining,
+      'remaining_free_items': _totalRemaining,
       'earned_free_items': summary?['total_earned'] ?? 0,
       'redeemed_free_items': summary?['total_redeemed'] ?? 0,
       'rewards': rewards,
@@ -125,7 +222,7 @@ class _MyFreeItemsScreenState extends State<MyFreeItemsScreen>
       ),
     );
     if (result == true) {
-      _loadMyRewards();
+      _loadAll();
       _loadRedemptionHistory();
     }
   }
@@ -138,17 +235,13 @@ class _MyFreeItemsScreenState extends State<MyFreeItemsScreen>
       body: SafeArea(
         child: Column(
           children: [
-            // Clean Header
             _buildCleanHeader(),
-            // Tab Bar & Content
             Expanded(
               child: Container(
                 color: Colors.grey[50],
                 child: Column(
                   children: [
-                    // Minimal Tab bar
                     _buildMinimalTabBar(),
-                    // Tab content
                     Expanded(
                       child: TabBarView(
                         controller: _tabController,
@@ -169,17 +262,12 @@ class _MyFreeItemsScreenState extends State<MyFreeItemsScreen>
   }
 
   Widget _buildCleanHeader() {
-    final totalRemaining = summary?['total_remaining'] ?? 0;
-
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-      ),
+      decoration: const BoxDecoration(color: Colors.white),
       child: Column(
         children: [
-          // Title
           const Text(
             'ของแถมของฉัน',
             style: TextStyle(
@@ -190,13 +278,12 @@ class _MyFreeItemsScreenState extends State<MyFreeItemsScreen>
             ),
           ),
           const SizedBox(height: 24),
-          // Main number display
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                '$totalRemaining',
+                '$_grandTotal',
                 style: const TextStyle(
                   color: AppColors.mainPurple,
                   fontSize: 64,
@@ -220,30 +307,26 @@ class _MyFreeItemsScreenState extends State<MyFreeItemsScreen>
           ),
           const SizedBox(height: 8),
           Text(
-            'สิทธิ์คงเหลือ',
-            style: TextStyle(
-              color: Colors.grey[500],
-              fontSize: 14,
-            ),
+            'ของแถมรวมทั้งหมด',
+            style: TextStyle(color: Colors.grey[500], fontSize: 14),
           ),
           const SizedBox(height: 24),
-          // Stats row - minimal style
-          if (summary != null)
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                _buildStatItem('ได้รับ', '${summary!['total_earned'] ?? 0}'),
-                Container(
-                  width: 1,
-                  height: 32,
-                  color: Colors.grey[200],
-                ),
-                _buildStatItem('แลกแล้ว', '${summary!['total_redeemed'] ?? 0}'),
-              ],
-            ),
+          // 3-stat row
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              _buildStatItem('พร้อมใช้', _totalRemaining,
+                  color: const Color(0xFF10B981)),
+              Container(width: 1, height: 32, color: Colors.grey[200]),
+              _buildStatItem('รออนุมัติ', _totalPending,
+                  color: const Color(0xFFF59E0B)),
+              Container(width: 1, height: 32, color: Colors.grey[200]),
+              _buildStatItem('ยังไม่แลก', _totalAvailableUnclaimed,
+                  color: AppColors.mainPurple),
+            ],
+          ),
           const SizedBox(height: 24),
-          // CTA Button - สีชมพู/แดงเพื่อให้โดดเด่น
-          if (totalRemaining > 0)
+          if (_totalRemaining > 0)
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
@@ -279,13 +362,13 @@ class _MyFreeItemsScreenState extends State<MyFreeItemsScreen>
     );
   }
 
-  Widget _buildStatItem(String label, String value) {
+  Widget _buildStatItem(String label, int value, {Color? color}) {
     return Column(
       children: [
         Text(
-          value,
-          style: const TextStyle(
-            color: AppColors.purpleText,
+          '$value',
+          style: TextStyle(
+            color: color ?? AppColors.purpleText,
             fontSize: 20,
             fontWeight: FontWeight.w600,
           ),
@@ -293,10 +376,7 @@ class _MyFreeItemsScreenState extends State<MyFreeItemsScreen>
         const SizedBox(height: 2),
         Text(
           label,
-          style: TextStyle(
-            color: Colors.grey[500],
-            fontSize: 13,
-          ),
+          style: TextStyle(color: Colors.grey[500], fontSize: 12),
         ),
       ],
     );
@@ -359,7 +439,7 @@ class _MyFreeItemsScreenState extends State<MyFreeItemsScreen>
               ),
               const SizedBox(height: 16),
               TextButton(
-                onPressed: _loadMyRewards,
+                onPressed: _loadAll,
                 child: const Text('ลองใหม่'),
               ),
             ],
@@ -368,9 +448,7 @@ class _MyFreeItemsScreenState extends State<MyFreeItemsScreen>
       );
     }
 
-    final totalRemaining = summary?['total_remaining'] ?? 0;
-
-    if (rewards.isEmpty || totalRemaining == 0) {
+    if (_grandTotal == 0 && rewards.isEmpty) {
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
@@ -402,10 +480,7 @@ class _MyFreeItemsScreenState extends State<MyFreeItemsScreen>
               const SizedBox(height: 8),
               Text(
                 'สะสมสินค้าเพื่อรับของแถมฟรี',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey[500],
-                ),
+                style: TextStyle(fontSize: 14, color: Colors.grey[500]),
               ),
             ],
           ),
@@ -414,103 +489,150 @@ class _MyFreeItemsScreenState extends State<MyFreeItemsScreen>
     }
 
     return RefreshIndicator(
-      onRefresh: _loadMyRewards,
+      onRefresh: _loadAll,
       color: AppColors.mainPurple,
       child: ListView(
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
         children: [
-          // Level breakdown - clean cards
-          _buildLevelBreakdown(),
+          if (rewards.any((r) => (r['remaining_free_items'] ?? 0) > 0))
+            _buildSectionTitle('พร้อมใช้'),
+          ..._buildApprovedCards(),
+          if (pendingRewards.isNotEmpty) _buildSectionTitle('รออนุมัติ'),
+          ...pendingRewards.map(_buildPendingCard),
+          if (_unclaimedAvailable.isNotEmpty)
+            _buildSectionTitle('ยังไม่ได้แลก (กดเพื่อขอแลก)'),
+          ..._unclaimedAvailable.map(_buildAvailableCard),
         ],
       ),
     );
   }
 
-  Widget _buildLevelBreakdown() {
-    final Map<int, Map<String, int>> levelStats = {};
-
-    for (final reward in rewards) {
-      final level = reward['level'] ?? 1;
-      final earned = reward['earned_free_items'] ?? 0;
-      final redeemed = reward['redeemed_free_items'] ?? 0;
-      final remaining = reward['remaining_free_items'] ?? 0;
-
-      if (!levelStats.containsKey(level)) {
-        levelStats[level] = {'earned': 0, 'redeemed': 0, 'remaining': 0};
-      }
-      levelStats[level]!['earned'] = (levelStats[level]!['earned'] ?? 0) + (earned as int);
-      levelStats[level]!['redeemed'] = (levelStats[level]!['redeemed'] ?? 0) + (redeemed as int);
-      levelStats[level]!['remaining'] = (levelStats[level]!['remaining'] ?? 0) + (remaining as int);
-    }
-
-    if (levelStats.isEmpty) return const SizedBox();
-
-    final sortedLevels = levelStats.entries.toList()
-      ..sort((a, b) => a.key.compareTo(b.key));
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(bottom: 12),
-          child: Text(
-            'รายละเอียด',
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
-              color: Colors.grey[600],
-              letterSpacing: 0.5,
-            ),
-          ),
+  Widget _buildSectionTitle(String title) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12, top: 4),
+      child: Text(
+        title,
+        style: TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w500,
+          color: Colors.grey[600],
+          letterSpacing: 0.5,
         ),
-        ...sortedLevels.map((entry) => _buildCleanLevelCard(
-          entry.key,
-          entry.value['earned'] ?? 0,
-          entry.value['redeemed'] ?? 0,
-          entry.value['remaining'] ?? 0,
-        )),
-      ],
+      ),
     );
   }
 
-  Widget _buildCleanLevelCard(int level, int earned, int redeemed, int remaining) {
+  // Approved cards: rolled-up per level
+  List<Widget> _buildApprovedCards() {
+    final Map<int, Map<String, int>> levelStats = {};
+
+    for (final reward in rewards) {
+      final level = (reward['level'] ?? 1) as int;
+      final earned = (reward['earned_free_items'] ?? 0) as int;
+      final redeemed = (reward['redeemed_free_items'] ?? 0) as int;
+      final remaining = (reward['remaining_free_items'] ?? 0) as int;
+
+      levelStats.putIfAbsent(
+          level, () => {'earned': 0, 'redeemed': 0, 'remaining': 0});
+      levelStats[level]!['earned'] = (levelStats[level]!['earned']!) + earned;
+      levelStats[level]!['redeemed'] =
+          (levelStats[level]!['redeemed']!) + redeemed;
+      levelStats[level]!['remaining'] =
+          (levelStats[level]!['remaining']!) + remaining;
+    }
+
+    final sorted = levelStats.entries.toList()
+      ..sort((a, b) => a.key.compareTo(b.key));
+
+    return sorted.map((e) {
+      return Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.grey[100]!),
+        ),
+        child: Row(
+          children: [
+            _levelBadge(e.key),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Row(
+                children: [
+                  _miniStat('ได้รับ', e.value['earned']!),
+                  _miniStat('แลกแล้ว', e.value['redeemed']!),
+                  _miniStat('คงเหลือ', e.value['remaining']!,
+                      isHighlight: e.value['remaining']! > 0),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }).toList();
+  }
+
+  Widget _buildPendingCard(Map<String, dynamic> r) {
+    final level = (r['level'] ?? 1) as int;
+    final earned = (r['earned_free_items'] ?? 0) as int;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey[100]!),
+        border:
+            Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.3)),
       ),
       child: Row(
         children: [
-          // Level badge
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: _getLevelColor(level).withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Center(
-              child: Text(
-                '$level',
-                style: TextStyle(
-                  color: _getLevelColor(level),
-                  fontWeight: FontWeight.w700,
-                  fontSize: 18,
+          _levelBadge(level),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Level $level — $earned ชิ้น',
+                  style: const TextStyle(
+                    color: AppColors.purpleText,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
                 ),
-              ),
+                const SizedBox(height: 4),
+                const Text(
+                  'รอแอดมินอนุมัติ',
+                  style: TextStyle(
+                    color: Color(0xFFF59E0B),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
             ),
           ),
-          const SizedBox(width: 16),
-          // Stats
-          Expanded(
-            child: Row(
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF59E0B).withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                _buildCleanStat('ได้รับ', earned),
-                _buildCleanStat('แลกแล้ว', redeemed),
-                _buildCleanStat('คงเหลือ', remaining, isHighlight: remaining > 0),
+                Icon(Icons.schedule, size: 14, color: Color(0xFFF59E0B)),
+                SizedBox(width: 4),
+                Text(
+                  'รออนุมัติ',
+                  style: TextStyle(
+                    color: Color(0xFFF59E0B),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
               ],
             ),
           ),
@@ -519,7 +641,101 @@ class _MyFreeItemsScreenState extends State<MyFreeItemsScreen>
     );
   }
 
-  Widget _buildCleanStat(String label, int value, {bool isHighlight = false}) {
+  Widget _buildAvailableCard(Map<String, dynamic> r) {
+    final level = (r['level'] ?? 1) as int;
+    final earned = (r['earned_free_items'] ?? 0) as int;
+    final required = (r['required_quantity'] ?? 0) as int;
+    final isClaiming = _claimingLevels.contains(level);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.mainPurple.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        children: [
+          _levelBadge(level),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Level $level — $earned ชิ้น',
+                  style: const TextStyle(
+                    color: AppColors.purpleText,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'ปลดล็อกที่ $required ชิ้น',
+                  style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+          ElevatedButton(
+            onPressed: isClaiming ? null : () => _claimLevel(r),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.mainPurple,
+              foregroundColor: Colors.white,
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              minimumSize: const Size(0, 36),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+              elevation: 0,
+            ),
+            child: isClaiming
+                ? const SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 2,
+                    ),
+                  )
+                : const Text(
+                    'ขอแลก',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _levelBadge(int level) {
+    return Container(
+      width: 44,
+      height: 44,
+      decoration: BoxDecoration(
+        color: _getLevelColor(level).withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Center(
+        child: Text(
+          '$level',
+          style: TextStyle(
+            color: _getLevelColor(level),
+            fontWeight: FontWeight.w700,
+            fontSize: 18,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _miniStat(String label, int value, {bool isHighlight = false}) {
     return Expanded(
       child: Column(
         children: [
@@ -534,10 +750,7 @@ class _MyFreeItemsScreenState extends State<MyFreeItemsScreen>
           const SizedBox(height: 2),
           Text(
             label,
-            style: TextStyle(
-              color: Colors.grey[500],
-              fontSize: 11,
-            ),
+            style: TextStyle(color: Colors.grey[500], fontSize: 11),
           ),
         ],
       ),
@@ -546,12 +759,12 @@ class _MyFreeItemsScreenState extends State<MyFreeItemsScreen>
 
   Color _getLevelColor(int level) {
     const colors = [
-      Color(0xFF6B7280), // grey
-      Color(0xFF3B82F6), // blue
-      Color(0xFF10B981), // green
-      Color(0xFFF59E0B), // amber
-      Color(0xFF8B5CF6), // purple
-      Color(0xFFEF4444), // red
+      Color(0xFF6B7280),
+      Color(0xFF3B82F6),
+      Color(0xFF10B981),
+      Color(0xFFF59E0B),
+      Color(0xFF8B5CF6),
+      Color(0xFFEF4444),
     ];
     return colors[(level - 1) % colors.length];
   }
@@ -633,7 +846,6 @@ class _MyFreeItemsScreenState extends State<MyFreeItemsScreen>
       ),
       child: Row(
         children: [
-          // Product image
           Container(
             width: 56,
             height: 56,
@@ -661,7 +873,6 @@ class _MyFreeItemsScreenState extends State<MyFreeItemsScreen>
                   ),
           ),
           const SizedBox(width: 14),
-          // Info
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -682,21 +893,15 @@ class _MyFreeItemsScreenState extends State<MyFreeItemsScreen>
                     Text(
                       '${item['quantity']} ชิ้น',
                       style: TextStyle(
-                        color: Colors.grey[600],
-                        fontSize: 13,
-                      ),
+                          color: Colors.grey[600], fontSize: 13),
                     ),
                     if (createdAt != null) ...[
-                      Text(
-                        ' • ',
-                        style: TextStyle(color: Colors.grey[400]),
-                      ),
+                      Text(' • ',
+                          style: TextStyle(color: Colors.grey[400])),
                       Text(
                         '${createdAt.day}/${createdAt.month}/${createdAt.year}',
                         style: TextStyle(
-                          color: Colors.grey[500],
-                          fontSize: 12,
-                        ),
+                            color: Colors.grey[500], fontSize: 12),
                       ),
                     ],
                   ],
@@ -704,7 +909,6 @@ class _MyFreeItemsScreenState extends State<MyFreeItemsScreen>
               ],
             ),
           ),
-          // Status badge
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             decoration: BoxDecoration(

@@ -17,10 +17,11 @@ class FreeItemRedemptionController extends Controller
     /**
      * แสดงสิทธิ์ของแถมทั้งหมดของ user
      */
-    public function myRewards()
+    public function myRewards(\Illuminate\Http\Request $request)
     {
         try {
             $user = Auth::user();
+            $includePending = $request->boolean('include_pending');
 
             $rewards = UserClaimedReward::where('user_id', $user->id)
                 ->where('status', 'approved')
@@ -40,6 +41,7 @@ class FreeItemRedemptionController extends Controller
                         'created_at' => $reward->created_at->format('Y-m-d H:i:s'),
                         'order_id' => $reward->order_id,
                         'can_redeem' => $remaining > 0,
+                        'status' => 'approved',
                     ];
                 });
 
@@ -48,16 +50,39 @@ class FreeItemRedemptionController extends Controller
             $totalRedeemed = $rewards->sum('redeemed_free_items');
             $totalRemaining = $rewards->sum('remaining_free_items');
 
+            $payload = [
+                'rewards' => $rewards,
+                'summary' => [
+                    'total_earned' => $totalEarned,
+                    'total_redeemed' => $totalRedeemed,
+                    'total_remaining' => $totalRemaining,
+                ],
+            ];
+
+            if ($includePending) {
+                $pending = UserClaimedReward::where('user_id', $user->id)
+                    ->where('status', 'pending')
+                    ->where('earned_free_items', '>', 0)
+                    ->orderBy('created_at', 'desc')
+                    ->get()
+                    ->map(function ($reward) {
+                        return [
+                            'id' => $reward->id,
+                            'level' => $reward->level,
+                            'earned_free_items' => $reward->earned_free_items,
+                            'required_quantity' => $reward->required_quantity,
+                            'created_at' => $reward->created_at->format('Y-m-d H:i:s'),
+                            'status' => 'pending',
+                        ];
+                    });
+
+                $payload['pending_rewards'] = $pending;
+                $payload['summary']['total_pending'] = $pending->sum('earned_free_items');
+            }
+
             return response()->json([
                 'success' => true,
-                'data' => [
-                    'rewards' => $rewards,
-                    'summary' => [
-                        'total_earned' => $totalEarned,
-                        'total_redeemed' => $totalRedeemed,
-                        'total_remaining' => $totalRemaining,
-                    ],
-                ],
+                'data' => $payload,
             ]);
 
         } catch (\Exception $e) {

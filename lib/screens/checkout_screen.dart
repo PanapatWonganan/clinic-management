@@ -597,7 +597,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         'delivery_method':
             selectedDeliveryOption != null ? 'delivery' : 'pickup',
         'payment_method':
-            selectedPaymentMethod == 'credit_card' ? 'credit_card' : 'qr_code',
+            selectedPaymentMethod == 'credit_card' ? 'credit_card' : 'promptpay',
         'delivery_fee': deliveryFee,
         'discount': discount, // ส่วนลดปกติ (ไม่รวมของแถม เพราะของแถมไม่หักราคา)
         'notes':

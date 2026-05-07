@@ -219,7 +219,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             MaterialPageRoute(
               builder: (context) => CheckoutScreen(
                 cartItems: cartItems,
-                appliedReward: _pendingReward,
+                appliedReward:
+                    _pendingFreeItems.isNotEmpty ? _pendingReward : null,
                 membershipData: membershipProgressData,
                 preselectedNewOrderFreeItems: _pendingFreeItems,
                 onOrderCreated: _clearCart,
@@ -383,7 +384,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       _pendingFreeItems = [];
     }
 
-    _pendingReward = best;
+    _pendingReward = {
+      ...best,
+      'earned_free_items': newQuota,
+    };
     _lastPendingRewardLevel = newLevel;
   }
 
@@ -1251,7 +1255,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   MaterialPageRoute(
                     builder: (context) => CheckoutScreen(
                       cartItems: cartItems,
-                      appliedReward: _pendingReward,
+                      appliedReward: _pendingFreeItems.isNotEmpty
+                          ? _pendingReward
+                          : null,
                       membershipData: membershipProgressData,
                       preselectedNewOrderFreeItems: _pendingFreeItems,
                       onOrderCreated: _clearCart,
