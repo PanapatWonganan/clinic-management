@@ -77,6 +77,37 @@ class RewardController extends Controller
         ]);
     }
 
+    /**
+     * Cancel a points-based reward redemption: refund points to the user and
+     * restore product stock. Idempotent — a row already cancelled is skipped.
+     */
+    public function cancelRewardRedemption($id)
+    {
+        \Illuminate\Support\Facades\DB::transaction(function () use ($id) {
+            $redemption = \App\Models\RewardRedemption::where('id', $id)->lockForUpdate()->first();
+            if (! $redemption || $redemption->status === \App\Models\RewardRedemption::STATUS_CANCELLED) {
+                return;
+            }
+
+            $user = \App\Models\User::where('id', $redemption->user_id)->lockForUpdate()->first();
+            if ($user) {
+                $user->points_spent = max(0, (int) $user->points_spent - (int) $redemption->points_total);
+                $user->save();
+            }
+
+            $product = \App\Models\Product::where('id', $redemption->product_id)->lockForUpdate()->first();
+            if ($product) {
+                $product->stock = (int) $product->stock + (int) $redemption->quantity;
+                $product->save();
+            }
+
+            $redemption->status = \App\Models\RewardRedemption::STATUS_CANCELLED;
+            $redemption->save();
+        });
+
+        return back()->with('success', 'ยกเลิกและคืนคะแนนเรียบร้อย');
+    }
+
     public function stats()
     {
         $stats = [

@@ -137,4 +137,40 @@ class RewardRedemptionTest extends TestCase
         $this->assertSame(4, $res->json('data.points_spent'));
         $this->assertSame(6, $res->json('data.points_balance'));
     }
+
+    public function test_admin_cancel_refunds_points_and_stock(): void
+    {
+        $user = $this->userWithPoints(100000); // earned 10
+        $product = $this->rewardProduct(5, 10);
+        $address = CustomerAddress::factory()->create(['user_id' => $user->id]);
+        Sanctum::actingAs($user);
+        $this->postJson('/api/reward-redemptions', [
+            'product_id' => $product->id,
+            'quantity' => 2,
+            'shipping_address_id' => $address->id,
+        ])->assertStatus(201);
+
+        $user->refresh();
+        $this->assertSame(10, (int) $user->points_spent);
+        $product->refresh();
+        $this->assertSame(8, (int) $product->stock);
+
+        $redemption = RewardRedemption::first();
+
+        // Admin cancel (call the service/controller method directly).
+        $admin = new \App\Http\Controllers\Admin\RewardController();
+        $admin->cancelRewardRedemption($redemption->id);
+
+        $user->refresh();
+        $product->refresh();
+        $redemption->refresh();
+        $this->assertSame(0, (int) $user->points_spent);   // refunded
+        $this->assertSame(10, (int) $product->stock);       // restored
+        $this->assertSame('cancelled', $redemption->status);
+
+        // Idempotent: second cancel does not double-refund.
+        $admin->cancelRewardRedemption($redemption->id);
+        $user->refresh();
+        $this->assertSame(0, (int) $user->points_spent);
+    }
 }
