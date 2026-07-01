@@ -42,6 +42,8 @@ approves and ships → user sees status in history.
 | Fulfillment | Admin approve + ship (mirrors bundle-deal `FreeItemRedemption` lifecycle). |
 | Reward products | Reuse existing `products.category='reward'` + `products.points`. Admin manages via existing product screen. |
 | Shipping address | Chosen at redemption time via bottom sheet in the existing detail screen. |
+| Catalog seeding | 10 fixed reward items seeded into `products` as `category='reward'` (see below). |
+| Reward images | Temporary Material Icons per item type (real images arriving from the team later). |
 | Price integrity | Snapshot `points_per_item` on the redemption row so later price edits don't corrupt history. |
 | Cancel behavior | Admin cancel refunds points (`points_spent -= points_total`) and restores stock. |
 
@@ -85,6 +87,33 @@ Parallel to `free_item_redemptions`, but points-bound (no `claimed_reward_id`):
 
 **Model `RewardRedemption`** — relationships `user()`, `product()`, `shippingAddress()`;
 scopes `pending()`, `active()` (mirror `FreeItemRedemption`).
+
+## Reward Catalog Seed
+
+Seed these 10 fixed items into `products` as `category='reward'`, `is_active=true`,
+with the points cost below. A dedicated seeder (idempotent — upsert by name or a stable
+`sku`/slug so re-running does not duplicate). Stock is set to a sensible default per item
+(team can adjust later via the existing admin product screen).
+
+| # | Name (TH/EN) | Points | Temp icon (Material) |
+|---|---|---|---|
+| 1 | หมวก | 50 | `Icons.sports_baseball` (cap) → `checkroom` fallback |
+| 2 | กระเป๋า | 60 | `Icons.shopping_bag` |
+| 3 | เสื้อ Babytee | 80 | `Icons.checkroom` |
+| 4 | เสื้อ Oversize | 120 | `Icons.checkroom` |
+| 5 | VDO Marketing | 750 | `Icons.videocam` |
+| 6 | Insurance | 3700 | `Icons.shield` (or `health_and_safety`) |
+| 7 | Hand-Ons 1:1 | 4000 | `Icons.handshake` (or `person`) |
+| 8 | Lecture + Training | 6000 | `Icons.school` |
+| 9 | Travel Ticket | 10000 | `Icons.airplane_ticket` (or `confirmation_number`) |
+| 10 | Travel Trip | 32000 | `Icons.flight_takeoff` (or `luggage`) |
+
+**Images are temporary.** Real images will be supplied by the team later. Until then the
+Flutter catalog/detail cards render a Material Icon chosen by item type. The image field on
+the product may be empty/null; the frontend falls back to the mapped icon when no image URL
+is present. Icon mapping lives in the frontend (keyed by product name/slug) so swapping in
+real images later is just populating `products.image` — no icon-mapping changes needed once
+images arrive; the fallback simply stops triggering.
 
 ## API (Backend)
 
@@ -140,7 +169,7 @@ Screens already exist — the work is replacing mock data with real API calls.
 - `getRedemptionHistory()` → `GET /reward-redemptions`
 
 ### New models
-- `lib/models/reward_product.dart` — typed reward catalog item (id, name, description, points, image, stock).
+- `lib/models/reward_product.dart` — typed reward catalog item (id, name, description, points, image, stock). Exposes a computed `fallbackIcon` (Material Icon by name/slug) used when `image` is null/empty.
 - `lib/models/reward_redemption.dart` — typed redemption (id, product, quantity, points_total, status, tracking, timestamps).
 
 ### Modified screens
@@ -173,6 +202,7 @@ Screens already exist — the work is replacing mock data with real API calls.
 **Backend (`clinic-backend/`)**
 - `database/migrations/*_add_points_spent_to_users.php` (new)
 - `database/migrations/*_create_reward_redemptions_table.php` (new)
+- `database/seeders/RewardCatalogSeeder.php` (new — 10 fixed reward items)
 - `app/Models/RewardRedemption.php` (new)
 - `app/Http/Controllers/RewardRedemptionController.php` (new)
 - `app/Http/Controllers/Admin/RewardController.php` (extend) + Blade views
