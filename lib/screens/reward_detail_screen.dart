@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import '../constants/app_colors.dart';
+import '../models/reward_product.dart';
 import '../widgets/custom_app_bar.dart';
 
 class RewardDetailScreen extends StatefulWidget {
-  final Map<String, dynamic> rewardItem;
+  final RewardProduct product;
 
   const RewardDetailScreen({
     super.key,
-    required this.rewardItem,
+    required this.product,
   });
 
   @override
@@ -17,7 +18,7 @@ class RewardDetailScreen extends StatefulWidget {
 class _RewardDetailScreenState extends State<RewardDetailScreen> {
   int quantity = 1;
   final int maxQuantity = 5;
-  final int availablePoints = 1000000; // Mock available points
+  final int availablePoints = 1000000; // TODO(task-10): replace with real balance from RewardService.getPointsBalance()
 
   void _incrementQuantity() {
     if (quantity < maxQuantity) {
@@ -35,7 +36,7 @@ class _RewardDetailScreenState extends State<RewardDetailScreen> {
     }
   }
 
-  int get totalPoints => (widget.rewardItem['points'] as int) * quantity;
+  int get totalPoints => widget.product.points * quantity;
   bool get canExchange => totalPoints <= availablePoints;
 
   void _handleExchange() {
@@ -49,6 +50,7 @@ class _RewardDetailScreenState extends State<RewardDetailScreen> {
       return;
     }
 
+    // TODO(task-10): replace with real redeem bottom sheet / RewardService.redeem()
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -129,6 +131,59 @@ class _RewardDetailScreenState extends State<RewardDetailScreen> {
     );
   }
 
+  Widget _buildProductImage() {
+    final imageUrl = widget.product.image;
+    if (imageUrl == null) {
+      return Container(
+        color: const Color(0xFFF3F4F6),
+        child: Center(
+          child: Icon(
+            widget.product.fallbackIcon,
+            size: 80,
+            color: const Color(0xFF9CA3AF),
+          ),
+        ),
+      );
+    }
+
+    final isNetwork = imageUrl.startsWith('http');
+    if (isNetwork) {
+      return Image.network(
+        imageUrl,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          return Container(
+            color: const Color(0xFFF3F4F6),
+            child: Center(
+              child: Icon(
+                widget.product.fallbackIcon,
+                size: 80,
+                color: const Color(0xFF9CA3AF),
+              ),
+            ),
+          );
+        },
+      );
+    }
+
+    return Image.asset(
+      imageUrl,
+      fit: BoxFit.cover,
+      errorBuilder: (context, error, stackTrace) {
+        return Container(
+          color: const Color(0xFFF3F4F6),
+          child: Center(
+            child: Icon(
+              widget.product.fallbackIcon,
+              size: 80,
+              color: const Color(0xFF9CA3AF),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -178,35 +233,7 @@ class _RewardDetailScreenState extends State<RewardDetailScreen> {
                       ),
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(20),
-                        child: widget.rewardItem['image'].startsWith('http')
-                            ? Image.network(
-                                widget.rewardItem['image'],
-                                fit: BoxFit.cover,
-                                errorBuilder: (context, error, stackTrace) {
-                                  return Container(
-                                    color: const Color(0xFFF3F4F6),
-                                    child: const Icon(
-                                      Icons.image,
-                                      size: 80,
-                                      color: Color(0xFF9CA3AF),
-                                    ),
-                                  );
-                                },
-                              )
-                            : Image.asset(
-                                widget.rewardItem['image'],
-                                fit: BoxFit.cover,
-                                errorBuilder: (context, error, stackTrace) {
-                                  return Container(
-                                    color: const Color(0xFFF3F4F6),
-                                    child: const Icon(
-                                      Icons.image,
-                                      size: 80,
-                                      color: Color(0xFF9CA3AF),
-                                    ),
-                                  );
-                                },
-                              ),
+                        child: _buildProductImage(),
                       ),
                     ),
                   ),
@@ -221,7 +248,7 @@ class _RewardDetailScreenState extends State<RewardDetailScreen> {
                       children: [
                         // Product name
                         Text(
-                          widget.rewardItem['name'],
+                          widget.product.name,
                           style: const TextStyle(
                             fontFamily: 'Prompt',
                             fontSize: 24,
@@ -235,7 +262,7 @@ class _RewardDetailScreenState extends State<RewardDetailScreen> {
 
                         // Product description
                         Text(
-                          widget.rewardItem['description'],
+                          widget.product.description ?? '',
                           style: const TextStyle(
                             fontFamily: 'Prompt',
                             fontSize: 16,
@@ -289,7 +316,7 @@ class _RewardDetailScreenState extends State<RewardDetailScreen> {
                                     ),
                                     const SizedBox(height: 4),
                                     Text(
-                                      '${widget.rewardItem['points']} คะแนน',
+                                      '${widget.product.points} คะแนน',
                                       style: const TextStyle(
                                         fontFamily: 'Prompt',
                                         fontSize: 20,
