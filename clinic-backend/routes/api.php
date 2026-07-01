@@ -40,6 +40,13 @@ Route::middleware('auth:sanctum')->group(function () {
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/products/main', [\App\Http\Controllers\ProductController::class, 'getMainProducts']);
     Route::get('/products/rewards', [\App\Http\Controllers\ProductController::class, 'getRewardProducts']);
+
+    // Points-based reward catalog + redemption (5th-tab flow)
+    Route::get('/reward-catalog', [\App\Http\Controllers\RewardRedemptionController::class, 'catalog']);
+    Route::get('/reward-points/balance', [\App\Http\Controllers\RewardRedemptionController::class, 'balance']);
+    Route::post('/reward-redemptions', [\App\Http\Controllers\RewardRedemptionController::class, 'redeem']);
+    Route::get('/reward-redemptions', [\App\Http\Controllers\RewardRedemptionController::class, 'history']);
+    Route::get('/reward-redemptions/{id}', [\App\Http\Controllers\RewardRedemptionController::class, 'show']);
 });
 
 // Product routes
