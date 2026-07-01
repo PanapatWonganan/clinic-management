@@ -112,7 +112,8 @@ with the points cost below. A dedicated seeder (idempotent — upsert by name or
 Flutter catalog/detail cards render a Material Icon chosen by item type. The image field on
 the product may be empty/null; the frontend falls back to the mapped icon when no image URL
 is present. Icon mapping lives in the frontend (keyed by product name/slug) so swapping in
-real images later is just populating `products.image` — no icon-mapping changes needed once
+real images later is just populating `products.image_url` (the API maps it to the `image`
+field in the catalog response) — no icon-mapping changes needed once
 images arrive; the fallback simply stops triggering.
 
 ## API (Backend)
