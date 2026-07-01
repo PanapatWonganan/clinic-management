@@ -138,6 +138,33 @@ class RewardRedemptionTest extends TestCase
         $this->assertSame(6, $res->json('data.points_balance'));
     }
 
+    public function test_admin_cancel_nonexistent_id_returns_error_not_success(): void
+    {
+        // Cancelling a non-existent redemption must flash 'error', not 'success',
+        // and must leave zero redemption rows in the DB (no mutation occurred).
+        $admin = new \App\Http\Controllers\Admin\RewardController();
+
+        // back()->with('error'/'success', ...) stores flash data on the session
+        // attached to the RedirectResponse — accessible via getSession().
+        $response = $admin->cancelRewardRedemption('00000000-0000-0000-0000-000000000000');
+
+        $this->assertSame(0, RewardRedemption::count());
+
+        $session = $response->getSession();
+        $this->assertNotNull($session, 'RedirectResponse must carry a session instance');
+
+        // Must NOT flash 'success' — the admin must not be misled into thinking the cancel worked.
+        $this->assertFalse(
+            $session->has('success'),
+            'A missing-row cancel must NOT flash success'
+        );
+        // Must flash 'error' so the admin is informed the row was not found.
+        $this->assertTrue(
+            $session->has('error'),
+            'A missing-row cancel must flash an error'
+        );
+    }
+
     public function test_admin_cancel_refunds_points_and_stock(): void
     {
         $user = $this->userWithPoints(100000); // earned 10

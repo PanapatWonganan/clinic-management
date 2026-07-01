@@ -3,9 +3,13 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Product;
+use App\Models\RewardRedemption;
+use App\Models\User;
 use App\Models\UserClaimedReward;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class RewardController extends Controller
 {
@@ -80,28 +84,50 @@ class RewardController extends Controller
     /**
      * Cancel a points-based reward redemption: refund points to the user and
      * restore product stock. Idempotent — a row already cancelled is skipped.
+     *
+     * Returns an error flash when the redemption does not exist at all.
+     * Aborts the transaction (422) when the user or product FK is broken.
      */
     public function cancelRewardRedemption($id)
     {
-        \Illuminate\Support\Facades\DB::transaction(function () use ($id) {
-            $redemption = \App\Models\RewardRedemption::where('id', $id)->lockForUpdate()->first();
-            if (! $redemption || $redemption->status === \App\Models\RewardRedemption::STATUS_CANCELLED) {
+        $redemption = RewardRedemption::where('id', $id)->first();
+
+        // FINDING 1: row not found at all → error, not success.
+        if (! $redemption) {
+            return back()->with('error', 'ไม่พบรายการแลกของรางวัล');
+        }
+
+        // Idempotent: already-cancelled rows are a benign no-op.
+        if ($redemption->status === RewardRedemption::STATUS_CANCELLED) {
+            return back()->with('success', 'ยกเลิกและคืนคะแนนเรียบร้อย');
+        }
+
+        DB::transaction(function () use ($id) {
+            $redemption = RewardRedemption::where('id', $id)->lockForUpdate()->first();
+
+            // Re-check inside transaction; another request may have cancelled concurrently.
+            if (! $redemption || $redemption->status === RewardRedemption::STATUS_CANCELLED) {
                 return;
             }
 
-            $user = \App\Models\User::where('id', $redemption->user_id)->lockForUpdate()->first();
-            if ($user) {
-                $user->points_spent = max(0, (int) $user->points_spent - (int) $redemption->points_total);
-                $user->save();
+            // FINDING 2: missing user or product is a data-integrity error — abort, don't silently skip.
+            $user = User::where('id', $redemption->user_id)->lockForUpdate()->first();
+            if (! $user) {
+                abort(422, 'ข้อมูลไม่สมบูรณ์ ไม่สามารถคืนคะแนนได้');
             }
 
-            $product = \App\Models\Product::where('id', $redemption->product_id)->lockForUpdate()->first();
-            if ($product) {
-                $product->stock = (int) $product->stock + (int) $redemption->quantity;
-                $product->save();
+            $product = Product::where('id', $redemption->product_id)->lockForUpdate()->first();
+            if (! $product) {
+                abort(422, 'ข้อมูลไม่สมบูรณ์ ไม่สามารถคืนสินค้าคงคลังได้');
             }
 
-            $redemption->status = \App\Models\RewardRedemption::STATUS_CANCELLED;
+            $user->points_spent = max(0, (int) $user->points_spent - (int) $redemption->points_total);
+            $user->save();
+
+            $product->stock = (int) $product->stock + (int) $redemption->quantity;
+            $product->save();
+
+            $redemption->status = RewardRedemption::STATUS_CANCELLED;
             $redemption->save();
         });
 
