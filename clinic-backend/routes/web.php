@@ -157,6 +157,7 @@ Route::prefix('admin')->group(function () {
             Route::put('/{id}/status', [AdminRewardController::class, 'updateStatus'])->name('update.status');
             Route::delete('/{id}', [AdminRewardController::class, 'destroy'])->name('destroy');
             Route::get('/stats/data', [AdminRewardController::class, 'stats'])->name('stats');
+            Route::post('/reward-redemptions/{id}/cancel', [AdminRewardController::class, 'cancelRewardRedemption'])->name('reward-redemptions.cancel');
         });
     });
 });
