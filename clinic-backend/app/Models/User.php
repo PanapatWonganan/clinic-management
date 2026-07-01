@@ -42,6 +42,8 @@ class User extends \Illuminate\Foundation\Auth\User
         'membership_benefits',
         'membership_discount_rate',
         'membership_point_multiplier',
+        // Reward points
+        'points_spent',
     ];
 
     protected $hidden = [
@@ -61,6 +63,8 @@ class User extends \Illuminate\Foundation\Auth\User
             'membership_benefits' => 'array',
             'membership_discount_rate' => 'decimal:2',
             'membership_point_multiplier' => 'decimal:2',
+            // Reward points casting
+            'points_spent' => 'integer',
         ];
     }
 
