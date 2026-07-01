@@ -72,7 +72,7 @@ class RewardService {
     try {
       return json.decode(response.body) as Map<String, dynamic>;
     } catch (e) {
-      return {'success': false, 'message': 'Invalid response format'};
+      return {'success': false, 'message': 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง'};
     }
   }
 }
