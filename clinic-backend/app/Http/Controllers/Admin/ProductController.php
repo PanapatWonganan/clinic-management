@@ -55,6 +55,7 @@ class ProductController extends Controller
             'description' => 'nullable|string|max:1000',
             'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
             'is_active' => 'boolean',
+            'points' => 'nullable|integer|min:0',
         ]);
 
         if ($validator->fails()) {
@@ -73,7 +74,7 @@ class ProductController extends Controller
                 'category' => $request->category,
                 'description' => $request->description,
                 'is_active' => $request->boolean('is_active', true),
-                'points' => 0, // Default points value
+                'points' => $request->input('points', 0),
             ];
 
             // Handle image upload
@@ -135,6 +136,7 @@ class ProductController extends Controller
                 'description' => 'nullable|string|max:1000',
                 'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
                 'is_active' => 'boolean',
+                'points' => 'nullable|integer|min:0',
             ]);
 
             if ($validator->fails()) {
@@ -152,6 +154,7 @@ class ProductController extends Controller
                 'category' => $request->category,
                 'description' => $request->description,
                 'is_active' => $request->boolean('is_active', true),
+                'points' => $request->input('points', $product->points),
             ];
 
             // Handle image upload

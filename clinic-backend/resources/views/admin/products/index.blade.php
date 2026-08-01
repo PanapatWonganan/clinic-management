@@ -575,6 +575,7 @@
                             <th>สินค้า</th>
                             <th>ราคา</th>
                             <th>สต็อก</th>
+                            <th>คะแนนที่ใช้แลก</th>
                             <th>หมวดหมู่</th>
                             <th>สถานะ</th>
                             <th>จัดการ</th>
@@ -612,6 +613,9 @@
                                 <span class="stock-badge {{ $stockClass }}">{{ $product->stock }} ชิ้น</span>
                             </td>
                             <td>
+                                {{ $product->points > 0 ? number_format($product->points, 0).' คะแนน' : '-' }}
+                            </td>
+                            <td>
                                 <span class="category-badge {{ $product->category }}">
                                     {{ $product->category == 'main' ? 'สินค้าหลัก' : 'สินค้ารางวัล' }}
                                 </span>
@@ -634,7 +638,7 @@
                         </tr>
                         @empty
                         <tr>
-                            <td colspan="6" style="text-align: center; padding: 3rem; color: var(--text-secondary);">
+                            <td colspan="7" style="text-align: center; padding: 3rem; color: var(--text-secondary);">
                                 <i class="fas fa-box" style="font-size: 3rem; margin-bottom: 1rem; opacity: 0.3;"></i>
                                 <div>ยังไม่มีสินค้าในระบบ</div>
                             </td>
@@ -696,6 +700,12 @@
                     </div>
 
                     <div class="form-group">
+                        <label class="form-label">คะแนนที่ใช้แลก</label>
+                        <input type="number" id="productPoints" name="points" class="form-input" min="0" placeholder="0">
+                        <small style="color: var(--text-secondary); font-size: 0.75rem;">คะแนนสะสมที่ลูกค้าต้องใช้แลกสินค้านี้ 1 ชิ้น (0 = ไม่ใช้แลกด้วยคะแนน)</small>
+                    </div>
+
+                    <div class="form-group">
                         <label class="form-label">รายละเอียดสินค้า</label>
                         <textarea id="productDescription" name="description" class="form-input" rows="3" placeholder="อธิบายรายละเอียดสินค้า..."></textarea>
                     </div>
@@ -746,6 +756,7 @@
             saveBtn.innerHTML = '<i class="fas fa-save"></i> บันทึก';
             form.reset();
             document.getElementById('productId').value = '';
+            document.getElementById('productPoints').value = 0;
             document.getElementById('productActive').checked = true;
             currentProductId = null;
 
@@ -771,6 +782,7 @@
                         document.getElementById('productPrice').value = product.price || '';
                         document.getElementById('productStock').value = product.stock || '';
                         document.getElementById('productCategory').value = product.category || '';
+                        document.getElementById('productPoints').value = product.points || 0;
                         document.getElementById('productDescription').value = product.description || '';
                         document.getElementById('productActive').checked = product.is_active;
 
