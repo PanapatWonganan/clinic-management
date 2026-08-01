@@ -281,7 +281,7 @@
             color: #1e40af;
         }
 
-        .category-badge.rewards {
+        .category-badge.reward {
             background: #fef3c7;
             color: #92400e;
         }
@@ -694,7 +694,7 @@
                             <select id="productCategory" name="category" class="form-input" required>
                                 <option value="">เลือกหมวดหมู่</option>
                                 <option value="main">สินค้าหลัก</option>
-                                <option value="rewards">สินค้ารางวัล</option>
+                                <option value="reward">สินค้ารางวัล</option>
                             </select>
                         </div>
                     </div>
